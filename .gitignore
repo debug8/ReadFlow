@@ -1,0 +1,19 @@
+# Кореневий .gitignore — тільки загальне.
+# Специфічні ігнори для стеків лежать у desktop/.gitignore та android/.gitignore,
+# щоб правила Visual Studio і Gradle не конфліктували між собою.
+
+# ОС
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+
+# Редактори
+.idea/
+.vscode/
+*.swp
+*~
+
+# Локальні файли
+*.log
+*.local

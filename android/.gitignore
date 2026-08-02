@@ -1,0 +1,32 @@
+# Gradle / Android Studio
+
+*.iml
+.gradle/
+build/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Локальна конфігурація (містить шлях до SDK — у git не потрапляє)
+local.properties
+
+# Android Studio / IntelliJ
+.idea/
+*.hprof
+
+# Збірки
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+output.json
+release/
+
+# Підпис (ключі НІКОЛИ не комітяться)
+*.jks
+*.keystore
+keystore.properties
+
+# Логи
+*.log

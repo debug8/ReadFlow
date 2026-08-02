@@ -1,0 +1,44 @@
+{
+  "$comment": "Орієнтовні норми техніки читання вголос (слів за хвилину) для 1-4 класів. Базуються на наказі МОН України №1222 від 21.08.2013. У НУШ ці норми носять рекомендаційний, а не оцінювальний характер - використовуйте як орієнтир, а не як оцінку.",
+  "version": 1,
+  "unit": "wordsPerMinute",
+  "grades": [
+    {
+      "grade": 1,
+      "label": "1 клас",
+      "semesters": [
+        { "semester": 1, "min": 10, "max": 20 },
+        { "semester": 2, "min": 20, "max": 30 }
+      ]
+    },
+    {
+      "grade": 2,
+      "label": "2 клас",
+      "semesters": [
+        { "semester": 1, "min": 35, "max": 45 },
+        { "semester": 2, "min": 50, "max": 60 }
+      ]
+    },
+    {
+      "grade": 3,
+      "label": "3 клас",
+      "semesters": [
+        { "semester": 1, "min": 65, "max": 70 },
+        { "semester": 2, "min": 75, "max": 80 }
+      ]
+    },
+    {
+      "grade": 4,
+      "label": "4 клас",
+      "semesters": [
+        { "semester": 1, "min": 80, "max": 85 },
+        { "semester": 2, "min": 90, "max": 95 }
+      ]
+    }
+  ],
+  "evaluation": {
+    "below": "нижче норми",
+    "within": "у межах норми",
+    "above": "вище норми"
+  }
+}
