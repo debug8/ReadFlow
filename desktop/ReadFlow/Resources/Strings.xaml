@@ -1,0 +1,27 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=mscorlib">
+
+    <!--
+        Усі видимі користувачеві рядки — тут. У коді й розмітці не має бути літералів
+        українською: беремо через {StaticResource Str_...}.
+        Кольори тут не задаються — вони живуть у Themes/ (Задача 1a).
+    -->
+
+    <sys:String x:Key="Str_AppTitle">ReadFlow</sys:String>
+
+    <!-- Ліва панель налаштувань -->
+    <sys:String x:Key="Str_SettingsHeader">Налаштування</sys:String>
+    <sys:String x:Key="Str_ThemeLabel">Тема</sys:String>
+    <sys:String x:Key="Str_SettingsPlaceholder">Тут будуть решта налаштувань: розмір шрифту, міжрядковий інтервал, тривалість таймера, режими A/B/C.</sys:String>
+
+    <!-- Центральна зона тексту -->
+    <sys:String x:Key="Str_TextHeader">Текст</sys:String>
+    <sys:String x:Key="Str_TextPlaceholder">Вставте текст сюди</sys:String>
+
+    <!-- Нижня панель статистики й керування -->
+    <sys:String x:Key="Str_StatsHeader">Статистика</sys:String>
+    <sys:String x:Key="Str_StatsPlaceholder">Тут будуть слова, знаки, букви, середня довжина слова, речення, абзаци.</sys:String>
+    <sys:String x:Key="Str_ControlsPlaceholder">Тут буде керування таймером: Старт, Стоп, Скидання.</sys:String>
+
+</ResourceDictionary>

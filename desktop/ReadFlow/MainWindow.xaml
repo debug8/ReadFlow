@@ -1,0 +1,111 @@
+<Window x:Class="ReadFlow.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:ReadFlow.ViewModels"
+        Title="{StaticResource Str_AppTitle}"
+        Height="700" Width="1100"
+        MinHeight="480" MinWidth="800"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource AppBackgroundBrush}"
+        Foreground="{DynamicResource TextForegroundBrush}">
+
+    <Window.DataContext>
+        <vm:MainViewModel />
+    </Window.DataContext>
+
+    <!--
+        Три зони: ліва панель налаштувань (вузька колонка, на всю висоту),
+        центр — текст, низ — статистика й керування.
+        Кольори — тільки через DynamicResource; ключі визначаються в Themes/ (Задача 1a),
+        до того моменту WPF малює контроли типовими кольорами.
+    -->
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" MinWidth="220" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" MinHeight="110" />
+        </Grid.RowDefinitions>
+
+        <!-- ЗОНА 1: панель налаштувань -->
+        <Border Grid.Column="0" Grid.RowSpan="2"
+                Width="240"
+                Background="{DynamicResource PanelBackgroundBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="0,0,1,0">
+            <StackPanel Margin="16">
+                <TextBlock Text="{StaticResource Str_SettingsHeader}"
+                           FontSize="16" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextForegroundBrush}" />
+
+                <!-- Тема. Список береться з файлів у Themes/ — нова тема зʼявляється сама. -->
+                <TextBlock Text="{StaticResource Str_ThemeLabel}"
+                           Margin="0,16,0,4"
+                           Foreground="{DynamicResource SecondaryForegroundBrush}" />
+                <ComboBox ItemsSource="{Binding Themes}"
+                          SelectedItem="{Binding SelectedTheme}"
+                          DisplayMemberPath="DisplayName"
+                          Background="{DynamicResource TextBackgroundBrush}"
+                          Foreground="{DynamicResource TextForegroundBrush}"
+                          BorderBrush="{DynamicResource BorderBrush}" />
+
+                <TextBlock Text="{StaticResource Str_SettingsPlaceholder}"
+                           Margin="0,20,0,0"
+                           TextWrapping="Wrap"
+                           Foreground="{DynamicResource SecondaryForegroundBrush}" />
+            </StackPanel>
+        </Border>
+
+        <!-- ЗОНА 2: текст -->
+        <Border Grid.Column="1" Grid.Row="0"
+                Background="{DynamicResource TextBackgroundBrush}">
+            <Grid Margin="16">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0"
+                           Text="{StaticResource Str_TextHeader}"
+                           FontSize="16" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextForegroundBrush}" />
+
+                <Border Grid.Row="1"
+                        Margin="0,12,0,0"
+                        BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="1">
+                    <TextBlock Text="{StaticResource Str_TextPlaceholder}"
+                               Margin="12"
+                               VerticalAlignment="Top"
+                               TextWrapping="Wrap"
+                               FontSize="{DynamicResource BaseFontSize}"
+                               LineHeight="{DynamicResource TextLineHeight}"
+                               LineStackingStrategy="BlockLineHeight"
+                               Foreground="{DynamicResource SecondaryForegroundBrush}" />
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- ЗОНА 3: статистика й керування -->
+        <Border Grid.Column="1" Grid.Row="1"
+                Background="{DynamicResource PanelBackgroundBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="0,1,0,0">
+            <StackPanel Margin="16">
+                <TextBlock Text="{StaticResource Str_StatsHeader}"
+                           FontSize="16" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextForegroundBrush}" />
+                <TextBlock Text="{StaticResource Str_StatsPlaceholder}"
+                           Margin="0,8,0,0"
+                           TextWrapping="Wrap"
+                           Foreground="{DynamicResource SecondaryForegroundBrush}" />
+                <TextBlock Text="{StaticResource Str_ControlsPlaceholder}"
+                           Margin="0,4,0,0"
+                           TextWrapping="Wrap"
+                           Foreground="{DynamicResource SecondaryForegroundBrush}" />
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

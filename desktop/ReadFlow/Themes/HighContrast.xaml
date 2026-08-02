@@ -1,0 +1,39 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=mscorlib">
+
+    <!--
+        Висока контрастність — для слабозорих.
+        Кольори-тла слів навмисно темні: текст поверх них лишається білим і читабельним.
+        Шрифт і міжрядковий інтервал більші за типові.
+    -->
+
+    <sys:String x:Key="ThemeDisplayName">Високий контраст</sys:String>
+
+    <!-- Тло й текст -->
+    <SolidColorBrush x:Key="AppBackgroundBrush" Color="#FF000000" />
+    <SolidColorBrush x:Key="PanelBackgroundBrush" Color="#FF000000" />
+    <SolidColorBrush x:Key="TextBackgroundBrush" Color="#FF000000" />
+    <SolidColorBrush x:Key="TextForegroundBrush" Color="#FFFFFFFF" />
+    <SolidColorBrush x:Key="SecondaryForegroundBrush" Color="#FFFFFF00" />
+    <SolidColorBrush x:Key="AccentBrush" Color="#FF00FFFF" />
+    <SolidColorBrush x:Key="BorderBrush" Color="#FFFFFFFF" />
+
+    <!-- Слова: підсвітка під курсором, межа читання (режим A), помилка (режим C) -->
+    <SolidColorBrush x:Key="WordHoverBrush" Color="#FF333333" />
+    <SolidColorBrush x:Key="WordBoundaryBrush" Color="#FF005C99" />
+    <SolidColorBrush x:Key="WordErrorBrush" Color="#FFB00000" />
+
+    <!-- Оцінка результату відносно норми -->
+    <SolidColorBrush x:Key="NormBelowBrush" Color="#FFFF6B6B" />
+    <SolidColorBrush x:Key="NormWithinBrush" Color="#FF00FF00" />
+    <SolidColorBrush x:Key="NormAboveBrush" Color="#FF00FFFF" />
+
+    <!-- Таймер під час активного заміру -->
+    <SolidColorBrush x:Key="TimerActiveBrush" Color="#FF00FF00" />
+
+    <!-- Типографіка -->
+    <sys:Double x:Key="BaseFontSize">18</sys:Double>
+    <sys:Double x:Key="TextLineHeight">30</sys:Double>
+
+</ResourceDictionary>

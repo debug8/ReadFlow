@@ -1,0 +1,43 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=mscorlib">
+
+    <!--
+        Світла тема.
+
+        Щоб додати свою тему: скопіюйте цей файл у Themes/ під новою назвою,
+        змініть ThemeDisplayName і значення кольорів. Правити код не треба —
+        тема сама зʼявиться у списку. Набір ключів має лишитися ТИМ САМИМ:
+        відсутній ключ = порожнє місце в інтерфейсі після перемикання.
+    -->
+
+    <!-- Назва теми у списку. Обовʼязковий ключ: за ним ThemeManager впізнає словник теми. -->
+    <sys:String x:Key="ThemeDisplayName">Світла</sys:String>
+
+    <!-- Тло й текст -->
+    <SolidColorBrush x:Key="AppBackgroundBrush" Color="#FFF4F5F7" />
+    <SolidColorBrush x:Key="PanelBackgroundBrush" Color="#FFECEEF1" />
+    <SolidColorBrush x:Key="TextBackgroundBrush" Color="#FFFFFFFF" />
+    <SolidColorBrush x:Key="TextForegroundBrush" Color="#FF1B1F23" />
+    <SolidColorBrush x:Key="SecondaryForegroundBrush" Color="#FF5C6670" />
+    <SolidColorBrush x:Key="AccentBrush" Color="#FF2C6FBB" />
+    <SolidColorBrush x:Key="BorderBrush" Color="#FFD3D8DE" />
+
+    <!-- Слова: підсвітка під курсором, межа читання (режим A), помилка (режим C) -->
+    <SolidColorBrush x:Key="WordHoverBrush" Color="#FFDCE9F7" />
+    <SolidColorBrush x:Key="WordBoundaryBrush" Color="#FFFFE08A" />
+    <SolidColorBrush x:Key="WordErrorBrush" Color="#FFF6C3C3" />
+
+    <!-- Оцінка результату відносно норми -->
+    <SolidColorBrush x:Key="NormBelowBrush" Color="#FFC0392B" />
+    <SolidColorBrush x:Key="NormWithinBrush" Color="#FF2E7D32" />
+    <SolidColorBrush x:Key="NormAboveBrush" Color="#FF1565C0" />
+
+    <!-- Таймер під час активного заміру -->
+    <SolidColorBrush x:Key="TimerActiveBrush" Color="#FF2E7D32" />
+
+    <!-- Типографіка: цим керує повзунок у панелі налаштувань (Задача 5) -->
+    <sys:Double x:Key="BaseFontSize">16</sys:Double>
+    <sys:Double x:Key="TextLineHeight">26</sys:Double>
+
+</ResourceDictionary>
