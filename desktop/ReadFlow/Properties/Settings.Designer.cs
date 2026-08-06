@@ -36,5 +36,117 @@ namespace ReadFlow.Properties
                 this["Theme"] = value;
             }
         }
+
+        /// <summary>Розмір шрифту тексту. 0 — брати значення з теми.</summary>
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("0")]
+        public double FontSize
+        {
+            get
+            {
+                return ((double)(this["FontSize"]));
+            }
+            set
+            {
+                this["FontSize"] = value;
+            }
+        }
+
+        /// <summary>Міжрядковий інтервал тексту. 0 — брати значення з теми.</summary>
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("0")]
+        public double LineHeight
+        {
+            get
+            {
+                return ((double)(this["LineHeight"]));
+            }
+            set
+            {
+                this["LineHeight"] = value;
+            }
+        }
+
+        /// <summary>Тривалість заміру в секундах.</summary>
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("60")]
+        public int TimerSeconds
+        {
+            get
+            {
+                return ((int)(this["TimerSeconds"]));
+            }
+            set
+            {
+                this["TimerSeconds"] = value;
+            }
+        }
+
+        /// <summary>Режим підрахунку абзаців (значення <c>ParagraphMode</c>).</summary>
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("0")]
+        public int ParagraphMode
+        {
+            get
+            {
+                return ((int)(this["ParagraphMode"]));
+            }
+            set
+            {
+                this["ParagraphMode"] = value;
+            }
+        }
+
+        /// <summary>Спосіб заміру: 0 — клік = стоп, 1 — таймер.</summary>
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("1")]
+        public int MeasurementMode
+        {
+            get
+            {
+                return ((int)(this["MeasurementMode"]));
+            }
+            set
+            {
+                this["MeasurementMode"] = value;
+            }
+        }
+
+        /// <summary>Режим C: відмічати помилки під час читання.</summary>
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool MarkErrors
+        {
+            get
+            {
+                return ((bool)(this["MarkErrors"]));
+            }
+            set
+            {
+                this["MarkErrors"] = value;
+            }
+        }
+
+        /// <summary>Чи розгорнута ліва панель налаштувань.</summary>
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool SettingsExpanded
+        {
+            get
+            {
+                return ((bool)(this["SettingsExpanded"]));
+            }
+            set
+            {
+                this["SettingsExpanded"] = value;
+            }
+        }
     }
 }

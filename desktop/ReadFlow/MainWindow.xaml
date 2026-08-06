@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:ReadFlow.ViewModels"
         xmlns:views="clr-namespace:ReadFlow.Views"
+        xmlns:core="clr-namespace:ReadFlow.Core"
         Title="{StaticResource Str_AppTitle}"
         Height="700" Width="1100"
         MinHeight="480" MinWidth="800"
@@ -38,6 +39,32 @@
             <Setter Property="TextWrapping" Value="Wrap" />
             <Setter Property="Foreground" Value="{DynamicResource SecondaryForegroundBrush}" />
         </Style>
+
+        <!-- Підпис над елементом налаштування -->
+        <Style x:Key="SettingLabelStyle" TargetType="TextBlock">
+            <Setter Property="Margin" Value="0,16,0,4" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Foreground" Value="{DynamicResource SecondaryForegroundBrush}" />
+        </Style>
+        <Style x:Key="SettingComboStyle" TargetType="ComboBox">
+            <Setter Property="Background" Value="{DynamicResource TextBackgroundBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextForegroundBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+        </Style>
+        <Style x:Key="SettingCheckStyle" TargetType="CheckBox">
+            <Setter Property="Margin" Value="0,6,0,0" />
+            <Setter Property="Foreground" Value="{DynamicResource TextForegroundBrush}" />
+        </Style>
+        <Style x:Key="SettingRadioStyle" TargetType="RadioButton">
+            <Setter Property="Margin" Value="0,6,0,0" />
+            <Setter Property="Foreground" Value="{DynamicResource TextForegroundBrush}" />
+        </Style>
+        <Style x:Key="TimerPresetStyle" TargetType="Button">
+            <Setter Property="Width" Value="42" />
+            <Setter Property="Margin" Value="0,0,6,0" />
+            <Setter Property="Padding" Value="0,2" />
+            <Setter Property="Command" Value="{Binding SetTimerSecondsCommand}" />
+        </Style>
     </Window.Resources>
 
     <!--
@@ -47,7 +74,7 @@
     -->
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="Auto" MinWidth="220" />
+            <ColumnDefinition Width="Auto" />
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
@@ -55,33 +82,154 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <!-- ЗОНА 1: панель налаштувань -->
+        <!-- ЗОНА 1: панель налаштувань. Згортається до вузької смужки з кнопкою. -->
         <Border Grid.Column="0" Grid.RowSpan="2"
-                Width="240"
                 Background="{DynamicResource PanelBackgroundBrush}"
                 BorderBrush="{DynamicResource BorderBrush}"
                 BorderThickness="0,0,1,0">
-            <StackPanel Margin="16">
-                <TextBlock Text="{StaticResource Str_SettingsHeader}"
-                           FontSize="16" FontWeight="SemiBold"
-                           Foreground="{DynamicResource TextForegroundBrush}" />
+            <Border.Style>
+                <Style TargetType="Border">
+                    <Setter Property="Width" Value="240" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsSettingsExpanded}" Value="False">
+                            <Setter Property="Width" Value="40" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
 
-                <!-- Тема. Список береться з файлів у Themes/ — нова тема зʼявляється сама. -->
-                <TextBlock Text="{StaticResource Str_ThemeLabel}"
-                           Margin="0,16,0,4"
-                           Foreground="{DynamicResource SecondaryForegroundBrush}" />
-                <ComboBox ItemsSource="{Binding Themes}"
-                          SelectedItem="{Binding SelectedTheme}"
-                          DisplayMemberPath="DisplayName"
-                          Background="{DynamicResource TextBackgroundBrush}"
-                          Foreground="{DynamicResource TextForegroundBrush}"
-                          BorderBrush="{DynamicResource BorderBrush}" />
+            <DockPanel>
+                <!-- Шапка з кнопкою згортання. Кнопка видима завжди, інакше
+                     згорнуту панель не було б чим повернути. -->
+                <Grid DockPanel.Dock="Top" Margin="8,10,8,0">
+                    <TextBlock Text="{StaticResource Str_SettingsHeader}"
+                               Margin="8,0,0,0"
+                               VerticalAlignment="Center"
+                               FontSize="16" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextForegroundBrush}">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsSettingsExpanded}" Value="False">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
 
-                <TextBlock Text="{StaticResource Str_SettingsPlaceholder}"
-                           Margin="0,20,0,0"
-                           TextWrapping="Wrap"
-                           Foreground="{DynamicResource SecondaryForegroundBrush}" />
-            </StackPanel>
+                    <Button Command="{Binding ToggleSettingsCommand}"
+                            HorizontalAlignment="Right"
+                            Width="24" Height="24"
+                            Padding="0"
+                            Foreground="{DynamicResource TextForegroundBrush}">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Content" Value="&#x2039;" />
+                                <Setter Property="ToolTip" Value="{StaticResource Str_CollapsePanel}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsSettingsExpanded}" Value="False">
+                                        <Setter Property="Content" Value="&#x203A;" />
+                                        <Setter Property="ToolTip" Value="{StaticResource Str_ExpandPanel}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                </Grid>
+
+                <ScrollViewer VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled">
+                    <ScrollViewer.Style>
+                        <Style TargetType="ScrollViewer">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsSettingsExpanded}" Value="False">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ScrollViewer.Style>
+
+                    <StackPanel Margin="16,0,16,16">
+                        <!-- Тема. Список береться з файлів у Themes/ — нова тема зʼявляється сама. -->
+                        <TextBlock Text="{StaticResource Str_ThemeLabel}"
+                                   Style="{StaticResource SettingLabelStyle}" />
+                        <ComboBox ItemsSource="{Binding Themes}"
+                                  SelectedItem="{Binding SelectedTheme}"
+                                  DisplayMemberPath="DisplayName"
+                                  Style="{StaticResource SettingComboStyle}" />
+
+                        <!-- Розмір шрифту -->
+                        <TextBlock Style="{StaticResource SettingLabelStyle}">
+                            <Run Text="{StaticResource Str_FontSizeLabel}" />
+                            <Run Text="{Binding FontSize, StringFormat={}{0:N0}}" />
+                        </TextBlock>
+                        <Slider Value="{Binding FontSize}"
+                                Minimum="10" Maximum="40"
+                                TickFrequency="1" IsSnapToTickEnabled="True"
+                                Foreground="{DynamicResource AccentBrush}" />
+
+                        <!-- Міжрядковий інтервал -->
+                        <TextBlock Style="{StaticResource SettingLabelStyle}">
+                            <Run Text="{StaticResource Str_LineHeightLabel}" />
+                            <Run Text="{Binding LineHeight, StringFormat={}{0:N0}}" />
+                        </TextBlock>
+                        <Slider Value="{Binding LineHeight}"
+                                Minimum="12" Maximum="60"
+                                TickFrequency="1" IsSnapToTickEnabled="True"
+                                Foreground="{DynamicResource AccentBrush}" />
+
+                        <Button Content="{StaticResource Str_UseThemeSizes}"
+                                Command="{Binding UseThemeSizesCommand}"
+                                Margin="0,8,0,0"
+                                HorizontalAlignment="Left"
+                                Padding="10,2" />
+
+                        <!-- Тривалість заміру -->
+                        <TextBlock Text="{StaticResource Str_TimerLabel}"
+                                   Style="{StaticResource SettingLabelStyle}" />
+                        <TextBox Text="{Binding TimerSeconds, UpdateSourceTrigger=LostFocus}"
+                                 Background="{DynamicResource TextBackgroundBrush}"
+                                 Foreground="{DynamicResource TextForegroundBrush}"
+                                 BorderBrush="{DynamicResource BorderBrush}"
+                                 CaretBrush="{DynamicResource TextForegroundBrush}"
+                                 Padding="4,2" />
+                        <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                            <Button Content="30" CommandParameter="30" Style="{StaticResource TimerPresetStyle}" />
+                            <Button Content="60" CommandParameter="60" Style="{StaticResource TimerPresetStyle}" />
+                            <Button Content="120" CommandParameter="120" Style="{StaticResource TimerPresetStyle}" />
+                        </StackPanel>
+
+                        <!-- Режим підрахунку абзаців (специфікація, 4.6) -->
+                        <TextBlock Text="{StaticResource Str_ParagraphModeLabel}"
+                                   Style="{StaticResource SettingLabelStyle}" />
+                        <ComboBox SelectedValue="{Binding ParagraphMode, Mode=TwoWay}"
+                                  SelectedValuePath="Tag"
+                                  Style="{StaticResource SettingComboStyle}">
+                            <ComboBoxItem Content="{StaticResource Str_ParagraphModeLines}"
+                                          Tag="{x:Static core:ParagraphMode.NonEmptyLines}" />
+                            <ComboBoxItem Content="{StaticResource Str_ParagraphModeBlocks}"
+                                          Tag="{x:Static core:ParagraphMode.BlankLineSeparated}" />
+                        </ComboBox>
+
+                        <!-- Спосіб заміру. A і B — взаємовиключні, C накладається на будь-який. -->
+                        <TextBlock Text="{StaticResource Str_MeasurementModeLabel}"
+                                   Style="{StaticResource SettingLabelStyle}" />
+                        <RadioButton Content="{StaticResource Str_ModeClickStop}"
+                                     GroupName="MeasurementMode"
+                                     IsChecked="{Binding IsClickStopMode}"
+                                     Style="{StaticResource SettingRadioStyle}" />
+                        <RadioButton Content="{StaticResource Str_ModeTimer}"
+                                     GroupName="MeasurementMode"
+                                     IsChecked="{Binding IsTimerMode}"
+                                     Style="{StaticResource SettingRadioStyle}" />
+                        <CheckBox Content="{StaticResource Str_MarkErrors}"
+                                  IsChecked="{Binding MarkErrors}"
+                                  Margin="0,12,0,0"
+                                  Style="{StaticResource SettingCheckStyle}" />
+                    </StackPanel>
+                </ScrollViewer>
+            </DockPanel>
         </Border>
 
         <!-- ЗОНА 2: текст -->

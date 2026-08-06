@@ -12,8 +12,24 @@
 
     <!-- Ліва панель налаштувань -->
     <sys:String x:Key="Str_SettingsHeader">Налаштування</sys:String>
+    <sys:String x:Key="Str_CollapsePanel">Згорнути панель налаштувань</sys:String>
+    <sys:String x:Key="Str_ExpandPanel">Розгорнути панель налаштувань</sys:String>
+
     <sys:String x:Key="Str_ThemeLabel">Тема</sys:String>
-    <sys:String x:Key="Str_SettingsPlaceholder">Тут будуть решта налаштувань: розмір шрифту, міжрядковий інтервал, режим абзаців, тривалість таймера, режими A/B/C.</sys:String>
+    <sys:String x:Key="Str_FontSizeLabel">Розмір шрифту</sys:String>
+    <sys:String x:Key="Str_LineHeightLabel">Міжрядковий інтервал</sys:String>
+    <sys:String x:Key="Str_UseThemeSizes">Як у темі</sys:String>
+
+    <sys:String x:Key="Str_ParagraphModeLabel">Абзаци рахувати як</sys:String>
+    <sys:String x:Key="Str_ParagraphModeLines">Кожен непорожній рядок</sys:String>
+    <sys:String x:Key="Str_ParagraphModeBlocks">Блок між порожніми рядками</sys:String>
+
+    <sys:String x:Key="Str_TimerLabel">Тривалість заміру, с</sys:String>
+
+    <sys:String x:Key="Str_MeasurementModeLabel">Спосіб заміру</sys:String>
+    <sys:String x:Key="Str_ModeClickStop">Клік = стоп</sys:String>
+    <sys:String x:Key="Str_ModeTimer">Таймер + ручний стоп</sys:String>
+    <sys:String x:Key="Str_MarkErrors">Відмічати помилки</sys:String>
 
     <!-- Центральна зона тексту -->
     <sys:String x:Key="Str_TextPlaceholder">Вставте текст сюди</sys:String>
