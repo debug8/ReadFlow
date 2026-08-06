@@ -133,9 +133,18 @@ namespace ReadFlow.Core
                 }
             }
 
+            // Округлення робиться на ТОЧНОМУ дробі букви/слова, а не на Double.
+            //
+            // 81/20 — це рівно 4.05, але як Double воно зберігається як
+            // 4.04999999999999982…, і чесне округлення такого числа дає 4.0.
+            // Math.Round для Double цю похибку компенсує й повертає 4.1, проте
+            // покладатися на це не можна: Microsoft прямо попереджає, що для
+            // Double серединні значення можуть округлюватися неочікувано.
+            // Kotlin такої компенсації не робить узагалі — саме тут платформи
+            // й розійшлися. decimal ділить два цілих точно, тож питання зникає.
             var averageWordLength = words.Count == 0
                 ? 0d
-                : Math.Round((double)letterCount / words.Count, 1, MidpointRounding.AwayFromZero);
+                : (double)Math.Round((decimal)letterCount / words.Count, 1, MidpointRounding.AwayFromZero);
 
             return new TextStats(
                 words.Count,

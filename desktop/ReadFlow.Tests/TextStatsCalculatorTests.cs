@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
@@ -216,6 +217,58 @@ namespace ReadFlow.Tests
 
             Assert.AreEqual(11, stats.LetterCount);
             Assert.AreEqual(3.7d, stats.AverageWordLength, 0.0001);
+        }
+
+        /// <summary>
+        /// Текст із рівно <paramref name="wordCount"/> слів і <paramref name="letterCount"/> букв.
+        /// Усі слова однакової довжини, останнє добирає залишок.
+        /// </summary>
+        private static string BuildText(int wordCount, int letterCount)
+        {
+            var baseLength = letterCount / wordCount;
+            var remainder = letterCount - baseLength * wordCount;
+            var words = new List<string>(wordCount);
+
+            for (var i = 0; i < wordCount; i++)
+            {
+                var length = baseLength + (i < remainder ? 1 : 0);
+                words.Add(new string('а', length));
+            }
+
+            return string.Join(" ", words);
+        }
+
+        [TestMethod]
+        public void AverageWordLength_RoundsExactFractionNotDouble()
+        {
+            // Тут десктоп і Android розійшлися вперше. 81/20 — це рівно 4.05,
+            // але в Double воно зберігається як 4.04999999999999982…, і чесне
+            // округлення такого числа дає 4.0. Округлювати треба точний дріб.
+            //
+            // Розходяться всі серединні значення, чий знаменник не є степенем
+            // двійки, тому перевіряємо кілька, а не один.
+            var cases = new[]
+            {
+                new { Words = 20, Letters = 81, Expected = 4.1d },   // 4.05
+                new { Words = 20, Letters = 41, Expected = 2.1d },   // 2.05
+                new { Words = 20, Letters = 39, Expected = 2.0d },   // 1.95
+                new { Words = 20, Letters = 51, Expected = 2.6d },   // 2.55
+                new { Words = 40, Letters = 90, Expected = 2.3d },   // 2.25
+            };
+
+            foreach (var testCase in cases)
+            {
+                var text = BuildText(testCase.Words, testCase.Letters);
+                var stats = TextStatsCalculator.Calculate(text);
+
+                Assert.AreEqual(testCase.Words, stats.WordCount, "Текст побудовано неправильно.");
+                Assert.AreEqual(testCase.Letters, stats.LetterCount, "Текст побудовано неправильно.");
+                Assert.AreEqual(
+                    testCase.Expected,
+                    stats.AverageWordLength,
+                    0.0001,
+                    testCase.Letters + "/" + testCase.Words + " має давати " + testCase.Expected);
+            }
         }
 
         [TestMethod]
