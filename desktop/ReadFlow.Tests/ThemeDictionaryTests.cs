@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Threading;
 using System.Windows;
 using System.Windows.Markup;
 using System.Windows.Media;
@@ -115,7 +114,7 @@ namespace ReadFlow.Tests
         [TestMethod]
         public void EveryTheme_LoadsAndValuesHaveExpectedTypes()
         {
-            RunOnStaThread(() =>
+            StaRunner.Run(() =>
             {
                 foreach (var file in GetThemeFiles())
                 {
@@ -196,35 +195,6 @@ namespace ReadFlow.Tests
 
             Assert.Fail("Не вдалося знайти папку ReadFlow\\Themes від " + AppDomain.CurrentDomain.BaseDirectory);
             return null;
-        }
-
-        /// <summary>
-        /// WPF-обʼєкти створюємо в STA-потоці: MSTest за замовчуванням працює в MTA.
-        /// </summary>
-        private static void RunOnStaThread(Action action)
-        {
-            Exception failure = null;
-
-            var thread = new Thread(() =>
-            {
-                try
-                {
-                    action();
-                }
-                catch (Exception ex)
-                {
-                    failure = ex;
-                }
-            });
-
-            thread.SetApartmentState(ApartmentState.STA);
-            thread.Start();
-            thread.Join();
-
-            if (failure != null)
-            {
-                throw new AssertFailedException(failure.Message, failure);
-            }
         }
     }
 }
