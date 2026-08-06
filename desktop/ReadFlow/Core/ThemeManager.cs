@@ -142,6 +142,13 @@ namespace ReadFlow.Core
         {
             try
             {
+                // Без цієї перевірки user.config перезаписувався б при кожному запуску:
+                // ApplySaved() читає збережену тему й одразу писав би її назад.
+                if (string.Equals(Settings.Default.Theme, themeName, StringComparison.Ordinal))
+                {
+                    return;
+                }
+
                 Settings.Default.Theme = themeName;
                 Settings.Default.Save();
             }
