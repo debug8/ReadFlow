@@ -5,7 +5,7 @@
     <!--
         Усі видимі користувачеві рядки — тут. У коді й розмітці не має бути літералів
         українською: беремо через {StaticResource Str_...}.
-        Кольори тут не задаються — вони живуть у Themes/ (Задача 1a).
+        Кольори тут не задаються — вони живуть у Themes/.
     -->
 
     <sys:String x:Key="Str_AppTitle">ReadFlow</sys:String>
@@ -13,15 +13,21 @@
     <!-- Ліва панель налаштувань -->
     <sys:String x:Key="Str_SettingsHeader">Налаштування</sys:String>
     <sys:String x:Key="Str_ThemeLabel">Тема</sys:String>
-    <sys:String x:Key="Str_SettingsPlaceholder">Тут будуть решта налаштувань: розмір шрифту, міжрядковий інтервал, тривалість таймера, режими A/B/C.</sys:String>
+    <sys:String x:Key="Str_SettingsPlaceholder">Тут будуть решта налаштувань: розмір шрифту, міжрядковий інтервал, режим абзаців, тривалість таймера, режими A/B/C.</sys:String>
 
     <!-- Центральна зона тексту -->
-    <sys:String x:Key="Str_TextHeader">Текст</sys:String>
     <sys:String x:Key="Str_TextPlaceholder">Вставте текст сюди</sys:String>
 
-    <!-- Нижня панель статистики й керування -->
-    <sys:String x:Key="Str_StatsHeader">Статистика</sys:String>
-    <sys:String x:Key="Str_StatsPlaceholder">Тут будуть слова, знаки, букви, середня довжина слова, речення, абзаци.</sys:String>
+    <!-- Нижня панель статистики -->
+    <sys:String x:Key="Str_StatWords">Слова</sys:String>
+    <sys:String x:Key="Str_StatChars">Знаки</sys:String>
+    <sys:String x:Key="Str_StatCharsNoSpaces">Знаки без пробілів</sys:String>
+    <sys:String x:Key="Str_StatLetters">Букви</sys:String>
+    <sys:String x:Key="Str_StatAverageWordLength">Сер. довжина слова</sys:String>
+    <sys:String x:Key="Str_StatSentences">Речення</sys:String>
+    <sys:String x:Key="Str_StatParagraphs">Абзаци</sys:String>
+
+    <!-- Керування таймером (Задача 6) -->
     <sys:String x:Key="Str_ControlsPlaceholder">Тут буде керування таймером: Старт, Стоп, Скидання.</sys:String>
 
 </ResourceDictionary>

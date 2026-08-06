@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Packaging;
 using System.Linq;
 using System.Reflection;
 using System.Resources;
@@ -164,12 +165,15 @@ namespace ReadFlow.Core
         {
             var themes = new List<ThemeDescriptor>();
 
+            EnsurePackSchemeRegistered();
+
             foreach (var name in EnumerateThemeNames())
             {
-                var source = BuildSourceUri(name);
-
                 try
                 {
+                    // Побудова Uri теж усередині try: якщо схема pack недоступна,
+                    // це має означати «тем немає», а не падіння всієї ViewModel.
+                    var source = BuildSourceUri(name);
                     var dictionary = new ResourceDictionary { Source = source };
                     var displayName = dictionary.Contains(ThemeMarkerKey)
                         ? dictionary[ThemeMarkerKey] as string
@@ -191,6 +195,33 @@ namespace ReadFlow.Core
                 .OrderBy(t => t.DisplayName, StringComparer.CurrentCulture)
                 .ToList()
                 .AsReadOnly();
+        }
+
+        /// <summary>
+        /// Переконатися, що схему <c>pack://</c> зареєстровано в <see cref="UriParser"/>.
+        ///
+        /// У застосунку це робить WPF під час старту, тому в бою проблеми не видно.
+        /// Але в юніт-тестах жоден WPF-компонент не ініціалізується, схема лишається
+        /// невідомою — і <c>new Uri("pack://application:,,,/...")</c> падає з
+        /// <see cref="UriFormatException"/>, бо <c>,,,</c> не є припустимим authority
+        /// для звичайного URI.
+        ///
+        /// Реєстрацію виконує статичний конструктор <see cref="PackUriHelper"/>, тож
+        /// достатньо звернутися до будь-якого його члена.
+        /// </summary>
+        private static void EnsurePackSchemeRegistered()
+        {
+            try
+            {
+                if (!UriParser.IsKnownScheme(PackUriHelper.UriSchemePack))
+                {
+                    Debug.WriteLine("ReadFlow: схему pack не зареєстровано, теми будуть недоступні.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine("ReadFlow: не вдалося зареєструвати схему pack — " + ex.Message);
+            }
         }
 
         /// <summary>

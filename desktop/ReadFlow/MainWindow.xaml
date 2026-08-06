@@ -6,18 +6,43 @@
         Height="700" Width="1100"
         MinHeight="480" MinWidth="800"
         WindowStartupLocation="CenterScreen"
+        xml:lang="uk-UA"
         Background="{DynamicResource AppBackgroundBrush}"
         Foreground="{DynamicResource TextForegroundBrush}">
+
+    <!--
+        xml:lang="uk-UA" — не косметика: привʼязки WPF форматують числа за Language
+        елемента, а не за культурою системи, і за замовчуванням це en-US.
+        Без цього рядка вчитель бачив би «3.7» і «3,000» замість «3,7» і «3 000».
+    -->
 
     <Window.DataContext>
         <vm:MainViewModel />
     </Window.DataContext>
 
+    <Window.Resources>
+        <!-- Стилі показників статистики: щоб не повторювати оформлення сім разів. -->
+        <Style x:Key="StatBlockStyle" TargetType="StackPanel">
+            <Setter Property="Width" Value="112" />
+            <Setter Property="Margin" Value="0,0,12,6" />
+        </Style>
+        <Style x:Key="StatValueStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="22" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource TextForegroundBrush}" />
+        </Style>
+        <Style x:Key="StatCaptionStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Margin" Value="0,2,0,0" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Foreground" Value="{DynamicResource SecondaryForegroundBrush}" />
+        </Style>
+    </Window.Resources>
+
     <!--
         Три зони: ліва панель налаштувань (вузька колонка, на всю висоту),
         центр — текст, низ — статистика й керування.
-        Кольори — тільки через DynamicResource; ключі визначаються в Themes/ (Задача 1a),
-        до того моменту WPF малює контроли типовими кольорами.
+        Кольори — тільки через DynamicResource; ключі визначені в Themes/.
     -->
     <Grid>
         <Grid.ColumnDefinitions>
@@ -26,7 +51,7 @@
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
             <RowDefinition Height="*" />
-            <RowDefinition Height="Auto" MinHeight="110" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <!-- ЗОНА 1: панель налаштувань -->
@@ -60,31 +85,45 @@
 
         <!-- ЗОНА 2: текст -->
         <Border Grid.Column="1" Grid.Row="0"
+                Margin="16"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="1"
                 Background="{DynamicResource TextBackgroundBrush}">
-            <Grid Margin="16">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="*" />
-                </Grid.RowDefinitions>
+            <Grid>
+                <TextBox x:Name="TextInput"
+                         Text="{Binding Text, UpdateSourceTrigger=PropertyChanged}"
+                         AcceptsReturn="True"
+                         TextWrapping="Wrap"
+                         VerticalScrollBarVisibility="Auto"
+                         VerticalContentAlignment="Top"
+                         Padding="12"
+                         BorderThickness="0"
+                         Background="{DynamicResource TextBackgroundBrush}"
+                         Foreground="{DynamicResource TextForegroundBrush}"
+                         CaretBrush="{DynamicResource TextForegroundBrush}"
+                         SelectionBrush="{DynamicResource AccentBrush}"
+                         FontSize="{DynamicResource BaseFontSize}" />
 
-                <TextBlock Grid.Row="0"
-                           Text="{StaticResource Str_TextHeader}"
-                           FontSize="16" FontWeight="SemiBold"
-                           Foreground="{DynamicResource TextForegroundBrush}" />
-
-                <Border Grid.Row="1"
-                        Margin="0,12,0,0"
-                        BorderBrush="{DynamicResource BorderBrush}"
-                        BorderThickness="1">
-                    <TextBlock Text="{StaticResource Str_TextPlaceholder}"
-                               Margin="12"
-                               VerticalAlignment="Top"
-                               TextWrapping="Wrap"
-                               FontSize="{DynamicResource BaseFontSize}"
-                               LineHeight="{DynamicResource TextLineHeight}"
-                               LineStackingStrategy="BlockLineHeight"
-                               Foreground="{DynamicResource SecondaryForegroundBrush}" />
-                </Border>
+                <!-- Підказка поверх порожнього поля. IsHitTestVisible=False — щоб не
+                     перехоплювала клік і курсор ставився в поле. -->
+                <TextBlock Text="{StaticResource Str_TextPlaceholder}"
+                           Margin="14,13,0,0"
+                           VerticalAlignment="Top"
+                           HorizontalAlignment="Left"
+                           IsHitTestVisible="False"
+                           FontSize="{DynamicResource BaseFontSize}"
+                           Foreground="{DynamicResource SecondaryForegroundBrush}">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Text}" Value="">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
             </Grid>
         </Border>
 
@@ -93,17 +132,60 @@
                 Background="{DynamicResource PanelBackgroundBrush}"
                 BorderBrush="{DynamicResource BorderBrush}"
                 BorderThickness="0,1,0,0">
-            <StackPanel Margin="16">
-                <TextBlock Text="{StaticResource Str_StatsHeader}"
-                           FontSize="16" FontWeight="SemiBold"
-                           Foreground="{DynamicResource TextForegroundBrush}" />
-                <TextBlock Text="{StaticResource Str_StatsPlaceholder}"
-                           Margin="0,8,0,0"
-                           TextWrapping="Wrap"
-                           Foreground="{DynamicResource SecondaryForegroundBrush}" />
+            <StackPanel Margin="16,12,16,12">
+                <WrapPanel>
+                    <StackPanel Style="{StaticResource StatBlockStyle}">
+                        <TextBlock Style="{StaticResource StatValueStyle}"
+                                   Text="{Binding Stats.WordCount, StringFormat={}{0:N0}}" />
+                        <TextBlock Style="{StaticResource StatCaptionStyle}"
+                                   Text="{StaticResource Str_StatWords}" />
+                    </StackPanel>
+
+                    <StackPanel Style="{StaticResource StatBlockStyle}">
+                        <TextBlock Style="{StaticResource StatValueStyle}"
+                                   Text="{Binding Stats.CharCount, StringFormat={}{0:N0}}" />
+                        <TextBlock Style="{StaticResource StatCaptionStyle}"
+                                   Text="{StaticResource Str_StatChars}" />
+                    </StackPanel>
+
+                    <StackPanel Style="{StaticResource StatBlockStyle}">
+                        <TextBlock Style="{StaticResource StatValueStyle}"
+                                   Text="{Binding Stats.CharCountNoSpaces, StringFormat={}{0:N0}}" />
+                        <TextBlock Style="{StaticResource StatCaptionStyle}"
+                                   Text="{StaticResource Str_StatCharsNoSpaces}" />
+                    </StackPanel>
+
+                    <StackPanel Style="{StaticResource StatBlockStyle}">
+                        <TextBlock Style="{StaticResource StatValueStyle}"
+                                   Text="{Binding Stats.LetterCount, StringFormat={}{0:N0}}" />
+                        <TextBlock Style="{StaticResource StatCaptionStyle}"
+                                   Text="{StaticResource Str_StatLetters}" />
+                    </StackPanel>
+
+                    <StackPanel Style="{StaticResource StatBlockStyle}">
+                        <TextBlock Style="{StaticResource StatValueStyle}"
+                                   Text="{Binding Stats.AverageWordLength, StringFormat={}{0:N1}}" />
+                        <TextBlock Style="{StaticResource StatCaptionStyle}"
+                                   Text="{StaticResource Str_StatAverageWordLength}" />
+                    </StackPanel>
+
+                    <StackPanel Style="{StaticResource StatBlockStyle}">
+                        <TextBlock Style="{StaticResource StatValueStyle}"
+                                   Text="{Binding Stats.SentenceCount, StringFormat={}{0:N0}}" />
+                        <TextBlock Style="{StaticResource StatCaptionStyle}"
+                                   Text="{StaticResource Str_StatSentences}" />
+                    </StackPanel>
+
+                    <StackPanel Style="{StaticResource StatBlockStyle}">
+                        <TextBlock Style="{StaticResource StatValueStyle}"
+                                   Text="{Binding Stats.ParagraphCount, StringFormat={}{0:N0}}" />
+                        <TextBlock Style="{StaticResource StatCaptionStyle}"
+                                   Text="{StaticResource Str_StatParagraphs}" />
+                    </StackPanel>
+                </WrapPanel>
+
                 <TextBlock Text="{StaticResource Str_ControlsPlaceholder}"
-                           Margin="0,4,0,0"
-                           TextWrapping="Wrap"
+                           Margin="0,6,0,0"
                            Foreground="{DynamicResource SecondaryForegroundBrush}" />
             </StackPanel>
         </Border>
