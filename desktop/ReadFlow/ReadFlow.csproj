@@ -91,7 +91,10 @@
   <ItemGroup>
     <Compile Include="Core\CountingOptions.cs" />
     <Compile Include="Core\MeasurementMode.cs" />
+    <Compile Include="Core\ReadingTimer.cs" />
+    <Compile Include="Core\SpeedCalculator.cs" />
     <Compile Include="Core\TextAppearance.cs" />
+    <Compile Include="Core\TimerSound.cs" />
     <Compile Include="Core\TextStatsCalculator.cs" />
     <Compile Include="Core\ThemeManager.cs" />
     <Compile Include="Models\ReadingDocument.cs" />
@@ -128,6 +131,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
+    <!-- Сигнал завершення заданої тривалості. Resource, а не Content:
+         звук має лежати всередині .exe, а не поруч із ним. -->
+    <Resource Include="Resources\timer-end.wav" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Data\" />

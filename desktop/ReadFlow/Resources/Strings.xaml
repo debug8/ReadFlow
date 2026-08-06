@@ -45,7 +45,15 @@
     <sys:String x:Key="Str_StatSentences">Речення</sys:String>
     <sys:String x:Key="Str_StatParagraphs">Абзаци</sys:String>
 
-    <!-- Керування таймером (Задача 6) -->
-    <sys:String x:Key="Str_ControlsPlaceholder">Тут буде керування таймером: Старт, Стоп, Скидання.</sys:String>
+    <!-- Керування таймером -->
+    <sys:String x:Key="Str_TimerStart">Старт</sys:String>
+    <sys:String x:Key="Str_TimerStop">Стоп</sys:String>
+    <sys:String x:Key="Str_TimerReset">Скидання</sys:String>
+    <sys:String x:Key="Str_HotkeyHint">Пробіл — старт і стоп, Esc — скидання</sys:String>
+
+    <!-- Підсумок заміру -->
+    <sys:String x:Key="Str_ResultTime">Час читання</sys:String>
+    <sys:String x:Key="Str_ResultWpm">Слів за хвилину</sys:String>
+    <sys:String x:Key="Str_ResultCpm">Знаків за хвилину</sys:String>
 
 </ResourceDictionary>

@@ -10,7 +10,8 @@
         WindowStartupLocation="CenterScreen"
         xml:lang="uk-UA"
         Background="{DynamicResource AppBackgroundBrush}"
-        Foreground="{DynamicResource TextForegroundBrush}">
+        Foreground="{DynamicResource TextForegroundBrush}"
+        PreviewKeyDown="OnWindowPreviewKeyDown">
 
     <!--
         xml:lang="uk-UA" — не косметика: привʼязки WPF форматують числа за Language
@@ -373,8 +374,83 @@
                     </StackPanel>
                 </WrapPanel>
 
-                <TextBlock Text="{StaticResource Str_ControlsPlaceholder}"
+                <!-- Керування заміром і підсумок -->
+                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                    <TextBlock Text="{Binding ElapsedDisplay}"
+                               FontSize="30" FontWeight="SemiBold"
+                               VerticalAlignment="Center"
+                               MinWidth="94">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Foreground" Value="{DynamicResource TextForegroundBrush}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsMeasuring}" Value="True">
+                                        <Setter Property="Foreground" Value="{DynamicResource TimerActiveBrush}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+
+                    <Button Command="{Binding ToggleMeasurementCommand}"
+                            MinWidth="86" Height="32"
+                            Margin="12,0,8,0"
+                            VerticalAlignment="Center">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Content" Value="{StaticResource Str_TimerStart}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsMeasuring}" Value="True">
+                                        <Setter Property="Content" Value="{StaticResource Str_TimerStop}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+
+                    <Button Content="{StaticResource Str_TimerReset}"
+                            Command="{Binding ResetMeasurementCommand}"
+                            MinWidth="86" Height="32"
+                            VerticalAlignment="Center" />
+
+                    <!-- Підсумок зʼявляється лише після завершеного заміру,
+                         щоб порожні нулі не збивали з пантелику. -->
+                    <StackPanel Orientation="Horizontal" Margin="24,0,0,0">
+                        <StackPanel.Style>
+                            <Style TargetType="StackPanel">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding HasResult}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </StackPanel.Style>
+
+                        <StackPanel Style="{StaticResource StatBlockStyle}">
+                            <TextBlock Style="{StaticResource StatValueStyle}"
+                                       Text="{Binding ResultElapsedDisplay}" />
+                            <TextBlock Style="{StaticResource StatCaptionStyle}"
+                                       Text="{StaticResource Str_ResultTime}" />
+                        </StackPanel>
+                        <StackPanel Style="{StaticResource StatBlockStyle}">
+                            <TextBlock Style="{StaticResource StatValueStyle}"
+                                       Text="{Binding WordsPerMinute, StringFormat={}{0:N0}}" />
+                            <TextBlock Style="{StaticResource StatCaptionStyle}"
+                                       Text="{StaticResource Str_ResultWpm}" />
+                        </StackPanel>
+                        <StackPanel Style="{StaticResource StatBlockStyle}">
+                            <TextBlock Style="{StaticResource StatValueStyle}"
+                                       Text="{Binding CharsPerMinute, StringFormat={}{0:N0}}" />
+                            <TextBlock Style="{StaticResource StatCaptionStyle}"
+                                       Text="{StaticResource Str_ResultCpm}" />
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+
+                <TextBlock Text="{StaticResource Str_HotkeyHint}"
                            Margin="0,6,0,0"
+                           FontSize="11"
                            Foreground="{DynamicResource SecondaryForegroundBrush}" />
             </StackPanel>
         </Border>

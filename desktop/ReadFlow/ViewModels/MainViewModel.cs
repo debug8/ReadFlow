@@ -35,6 +35,12 @@ namespace ReadFlow.ViewModels
 
         private readonly DispatcherTimer _recalculateTimer;
         private readonly CountingOptions _countingOptions = new CountingOptions();
+        private readonly ReadingTimer _readingTimer = new ReadingTimer();
+
+        private bool _hasResult;
+        private int _wordsPerMinute;
+        private int _charsPerMinute;
+        private TimeSpan _resultElapsed;
 
         private string _text = string.Empty;
         private TextStats _stats = TextStats.Empty;
@@ -60,9 +66,14 @@ namespace ReadFlow.ViewModels
             };
             _recalculateTimer.Tick += OnRecalculateTimerTick;
 
+            _readingTimer.Tick += OnReadingTimerTick;
+            _readingTimer.DurationReached += OnDurationReached;
+
             SetTimerSecondsCommand = new RelayCommand<string>(OnSetTimerSeconds);
             UseThemeSizesCommand = new RelayCommand(OnUseThemeSizes, () => !UsesThemeSizes);
             ToggleSettingsCommand = new RelayCommand(() => IsSettingsExpanded = !IsSettingsExpanded);
+            ToggleMeasurementCommand = new RelayCommand(ToggleMeasurement);
+            ResetMeasurementCommand = new RelayCommand(ResetMeasurement);
 
             Themes = ThemeManager.AvailableThemes;
 
@@ -83,10 +94,15 @@ namespace ReadFlow.ViewModels
             get { return _text; }
             set
             {
-                if (Set(ref _text, value ?? string.Empty))
+                if (!Set(ref _text, value ?? string.Empty))
                 {
-                    RestartDebounce();
+                    return;
                 }
+
+                // Підсумок стосується конкретного тексту. Змінили текст —
+                // старі WPM більше ні про що не свідчать.
+                HasResult = false;
+                RestartDebounce();
             }
         }
 
@@ -260,6 +276,69 @@ namespace ReadFlow.ViewModels
         /// <summary>Швидкий вибір тривалості: 30 / 60 / 120 секунд.</summary>
         public ICommand SetTimerSecondsCommand { get; private set; }
 
+        // ── Таймер і підсумок ─────────────────────────────────────────────
+
+        /// <summary>Чи триває замір.</summary>
+        public bool IsMeasuring
+        {
+            get { return _readingTimer.IsRunning; }
+        }
+
+        /// <summary>Час на екрані у форматі мм:сс.</summary>
+        public string ElapsedDisplay
+        {
+            get { return Format(_readingTimer.Elapsed); }
+        }
+
+        /// <summary>Чи є завершений замір, який можна показати.</summary>
+        public bool HasResult
+        {
+            get { return _hasResult; }
+            private set { Set(ref _hasResult, value); }
+        }
+
+        /// <summary>Час завершеного заміру у форматі мм:сс.</summary>
+        public string ResultElapsedDisplay
+        {
+            get { return Format(_resultElapsed); }
+        }
+
+        public int WordsPerMinute
+        {
+            get { return _wordsPerMinute; }
+            private set { Set(ref _wordsPerMinute, value); }
+        }
+
+        public int CharsPerMinute
+        {
+            get { return _charsPerMinute; }
+            private set { Set(ref _charsPerMinute, value); }
+        }
+
+        /// <summary>
+        /// Скільки слів вважати прочитаними. Поки що весь текст;
+        /// у Задачі 7 сюди прийде слово-межа з режиму A.
+        /// </summary>
+        public int WordsRead
+        {
+            get { return Stats.WordCount; }
+        }
+
+        /// <summary>
+        /// Скільки знаків вважати прочитаними. Без пробілів — вони не
+        /// вимовляються (специфікація, 4.7).
+        /// </summary>
+        public int CharsRead
+        {
+            get { return Stats.CharCountNoSpaces; }
+        }
+
+        /// <summary>Старт або стоп заміру. Гаряча клавіша — Пробіл.</summary>
+        public ICommand ToggleMeasurementCommand { get; private set; }
+
+        /// <summary>Скинути замір. Гаряча клавіша — Esc.</summary>
+        public ICommand ResetMeasurementCommand { get; private set; }
+
         /// <summary>Спосіб заміру. Режими A і B взаємовиключні.</summary>
         public MeasurementMode MeasurementMode
         {
@@ -351,6 +430,9 @@ namespace ReadFlow.ViewModels
 
             Stats = TextStatsCalculator.Calculate(_text, words, _countingOptions);
             Document = new ReadingDocument(_text, words);
+
+            OnPropertyChanged("WordsRead");
+            OnPropertyChanged("CharsRead");
         }
 
         private void RestartDebounce()
@@ -364,6 +446,70 @@ namespace ReadFlow.ViewModels
         private void OnRecalculateTimerTick(object sender, EventArgs e)
         {
             RecalculateNow();
+        }
+
+        // ── Замір ─────────────────────────────────────────────────────────
+
+        private void ToggleMeasurement()
+        {
+            if (_readingTimer.IsRunning)
+            {
+                StopMeasurement();
+                return;
+            }
+
+            // Дебаунс міг ще не спрацювати — інакше замір рахувався б
+            // за кількістю слів попереднього тексту.
+            RecalculateNow();
+
+            _readingTimer.Duration = TimeSpan.FromSeconds(TimerSeconds);
+            HasResult = false;
+            _readingTimer.Start();
+
+            OnPropertyChanged("IsMeasuring");
+        }
+
+        private void StopMeasurement()
+        {
+            _readingTimer.Stop();
+            _resultElapsed = _readingTimer.Elapsed;
+
+            var seconds = (decimal)_resultElapsed.TotalSeconds;
+            WordsPerMinute = SpeedCalculator.WordsPerMinute(WordsRead, seconds);
+            CharsPerMinute = SpeedCalculator.CharsPerMinute(CharsRead, seconds);
+
+            HasResult = _resultElapsed > TimeSpan.Zero;
+
+            OnPropertyChanged("IsMeasuring");
+            OnPropertyChanged("ResultElapsedDisplay");
+        }
+
+        private void ResetMeasurement()
+        {
+            _readingTimer.Reset();
+            HasResult = false;
+
+            OnPropertyChanged("IsMeasuring");
+            OnPropertyChanged("ElapsedDisplay");
+        }
+
+        private void OnReadingTimerTick(object sender, EventArgs e)
+        {
+            OnPropertyChanged("ElapsedDisplay");
+        }
+
+        private void OnDurationReached(object sender, EventArgs e)
+        {
+            // Сигнал, але відлік триває: у режимі B час має бути фактичним
+            // (специфікація, 4.8).
+            TimerSound.Play();
+        }
+
+        private static string Format(TimeSpan value)
+        {
+            var minutes = (int)value.TotalMinutes;
+            return minutes.ToString("00", CultureInfo.InvariantCulture)
+                   + ":" + value.Seconds.ToString("00", CultureInfo.InvariantCulture);
         }
 
         // ── Налаштування ──────────────────────────────────────────────────
