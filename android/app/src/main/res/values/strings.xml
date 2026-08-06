@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Назва застосунку не перекладається й не транслітерується. -->
+    <string name="app_name" translatable="false">ReadFlow</string>
+
+    <!-- Зона тексту -->
+    <string name="text_placeholder">Вставте текст або оберіть зразок</string>
+    <string name="cd_text_zone">Поле тексту</string>
+
+    <!-- Компактний рядок статистики -->
+    <string name="stat_words">Слова</string>
+    <string name="stat_chars">Знаки</string>
+    <string name="stat_letters">Букви</string>
+    <string name="stat_avg_word_length">Сер. довжина</string>
+    <string name="stat_empty_value">—</string>
+    <string name="cd_stats_row">Рядок статистики</string>
+
+    <!-- Нижня панель керування -->
+    <string name="timer_zero">00:00</string>
+    <string name="action_start">Старт</string>
+    <string name="cd_control_panel">Панель керування</string>
+</resources>

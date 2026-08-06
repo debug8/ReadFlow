@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Тема-обгортка для вікна. Кольори інтерфейсу задає Compose (ReadFlowTheme),
+         тут лише прибирається ActionBar, щоб не було подвійного заголовка. -->
+    <style name="Theme.ReadFlow" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>
