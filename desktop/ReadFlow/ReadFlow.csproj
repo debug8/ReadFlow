@@ -89,8 +89,12 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Core\CountingOptions.cs" />
+    <Compile Include="Core\TextStatsCalculator.cs" />
     <Compile Include="Core\ThemeManager.cs" />
+    <Compile Include="Models\TextStats.cs" />
     <Compile Include="Models\ThemeDescriptor.cs" />
+    <Compile Include="Models\WordToken.cs" />
     <Compile Include="ViewModels\ViewModelBase.cs" />
     <Compile Include="ViewModels\RelayCommand.cs" />
     <Compile Include="ViewModels\MainViewModel.cs" />
