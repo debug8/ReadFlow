@@ -226,19 +226,47 @@ class TextStatsCalculatorTest {
     /**
      * Округлення робиться на точному дробі, а не на Double.
      *
-     * 81 буква на 20 слів — це рівно 4.05, але найближчий Double трохи менший,
-     * тому `BigDecimal(81.0 / 20).setScale(1, HALF_UP)` дало б 4.0, а десктоп
-     * показує 4.1. Цей тест ловить саме таку реалізацію.
+     * Ті самі випадки, що й у `AverageWordLength_RoundsExactFractionNotDouble`
+     * на десктопі. 81/20 — це рівно 4.05, але в Double воно зберігається як
+     * 4.04999999999999982…, і чесне HALF_UP над таким числом дає 4.0.
+     * Розходяться всі серединні значення, чий знаменник не є степенем двійки,
+     * тому перевіряємо кілька, а не один.
      */
     @Test
     fun `average word length is rounded on the exact fraction not on a double`() {
-        // 20 слів по 4 букви (80) + одна п'ятибуквена заміна = 81 буква.
-        val text = (List(19) { "абвг" } + "абвгд").joinToString(" ")
-        val stats = TextStatsCalculator.calculate(text)
+        val cases = listOf(
+            Triple(20, 81, 4.1),   // 4.05
+            Triple(20, 41, 2.1),   // 2.05
+            Triple(20, 39, 2.0),   // 1.95
+            Triple(20, 51, 2.6),   // 2.55
+            Triple(40, 90, 2.3)    // 2.25
+        )
 
-        assertEquals(20, stats.wordCount)
-        assertEquals(81, stats.letterCount)
-        assertEquals(4.1, stats.averageWordLength, 0.0001)
+        for ((words, letters, expected) in cases) {
+            val text = buildText(words, letters)
+            val stats = TextStatsCalculator.calculate(text)
+
+            assertEquals("Текст побудовано неправильно.", words, stats.wordCount)
+            assertEquals("Текст побудовано неправильно.", letters, stats.letterCount)
+            assertEquals(
+                "$letters/$words має давати $expected",
+                expected,
+                stats.averageWordLength,
+                0.0001
+            )
+        }
+    }
+
+    /** Текст із рівно [words] слів і рівно [letters] букв разом. */
+    private fun buildText(words: Int, letters: Int): String {
+        require(letters >= words) { "Кожне слово має щонайменше одну букву." }
+
+        val base = letters / words
+        val extra = letters % words
+
+        return (0 until words).joinToString(" ") { i ->
+            "а".repeat(base + if (i < extra) 1 else 0)
+        }
     }
 
     // ── Речення (4.5) ─────────────────────────────────────────────────
