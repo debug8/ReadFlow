@@ -92,9 +92,11 @@
     <Compile Include="Core\CountingOptions.cs" />
     <Compile Include="Core\TextStatsCalculator.cs" />
     <Compile Include="Core\ThemeManager.cs" />
+    <Compile Include="Models\ReadingDocument.cs" />
     <Compile Include="Models\TextStats.cs" />
     <Compile Include="Models\ThemeDescriptor.cs" />
     <Compile Include="Models\WordToken.cs" />
+    <Compile Include="Views\WordReaderView.cs" />
     <Compile Include="ViewModels\ViewModelBase.cs" />
     <Compile Include="ViewModels\RelayCommand.cs" />
     <Compile Include="ViewModels\MainViewModel.cs" />
@@ -127,7 +129,6 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Data\" />
-    <Folder Include="Views\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

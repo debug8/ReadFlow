@@ -2,6 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:ReadFlow.ViewModels"
+        xmlns:views="clr-namespace:ReadFlow.Views"
         Title="{StaticResource Str_AppTitle}"
         Height="700" Width="1100"
         MinHeight="480" MinWidth="800"
@@ -90,40 +91,80 @@
                 BorderThickness="1"
                 Background="{DynamicResource TextBackgroundBrush}">
             <Grid>
-                <TextBox x:Name="TextInput"
-                         Text="{Binding Text, UpdateSourceTrigger=PropertyChanged}"
-                         AcceptsReturn="True"
-                         TextWrapping="Wrap"
-                         VerticalScrollBarVisibility="Auto"
-                         VerticalContentAlignment="Top"
-                         Padding="12"
-                         BorderThickness="0"
-                         Background="{DynamicResource TextBackgroundBrush}"
-                         Foreground="{DynamicResource TextForegroundBrush}"
-                         CaretBrush="{DynamicResource TextForegroundBrush}"
-                         SelectionBrush="{DynamicResource AccentBrush}"
-                         FontSize="{DynamicResource BaseFontSize}" />
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
 
-                <!-- Підказка поверх порожнього поля. IsHitTestVisible=False — щоб не
-                     перехоплювала клік і курсор ставився в поле. -->
-                <TextBlock Text="{StaticResource Str_TextPlaceholder}"
-                           Margin="14,13,0,0"
-                           VerticalAlignment="Top"
-                           HorizontalAlignment="Left"
-                           IsHitTestVisible="False"
-                           FontSize="{DynamicResource BaseFontSize}"
-                           Foreground="{DynamicResource SecondaryForegroundBrush}">
-                    <TextBlock.Style>
-                        <Style TargetType="TextBlock">
+                <CheckBox Grid.Row="0"
+                          Content="{StaticResource Str_ReadingMode}"
+                          IsChecked="{Binding IsReadingMode}"
+                          Margin="12,10,12,0"
+                          HorizontalAlignment="Right"
+                          Foreground="{DynamicResource SecondaryForegroundBrush}" />
+
+                <!-- Режим редагування -->
+                <Grid Grid.Row="1">
+                    <Grid.Style>
+                        <Style TargetType="Grid">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsReadingMode}" Value="True">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Grid.Style>
+
+                    <TextBox x:Name="TextInput"
+                             Text="{Binding Text, UpdateSourceTrigger=PropertyChanged}"
+                             AcceptsReturn="True"
+                             TextWrapping="Wrap"
+                             VerticalScrollBarVisibility="Auto"
+                             VerticalContentAlignment="Top"
+                             Padding="12"
+                             BorderThickness="0"
+                             Background="{DynamicResource TextBackgroundBrush}"
+                             Foreground="{DynamicResource TextForegroundBrush}"
+                             CaretBrush="{DynamicResource TextForegroundBrush}"
+                             SelectionBrush="{DynamicResource AccentBrush}"
+                             FontSize="{DynamicResource BaseFontSize}" />
+
+                    <!-- Підказка поверх порожнього поля. IsHitTestVisible=False — щоб не
+                         перехоплювала клік і курсор ставився в поле. -->
+                    <TextBlock Text="{StaticResource Str_TextPlaceholder}"
+                               Margin="14,13,0,0"
+                               VerticalAlignment="Top"
+                               HorizontalAlignment="Left"
+                               IsHitTestVisible="False"
+                               FontSize="{DynamicResource BaseFontSize}"
+                               Foreground="{DynamicResource SecondaryForegroundBrush}">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Text}" Value="">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </Grid>
+
+                <!-- Режим читання. Схований контрол не будує Runʼи — див. WordReaderView. -->
+                <views:WordReaderView Grid.Row="1"
+                                      Document="{Binding Document}">
+                    <views:WordReaderView.Style>
+                        <Style TargetType="views:WordReaderView">
                             <Setter Property="Visibility" Value="Collapsed" />
                             <Style.Triggers>
-                                <DataTrigger Binding="{Binding Text}" Value="">
+                                <DataTrigger Binding="{Binding IsReadingMode}" Value="True">
                                     <Setter Property="Visibility" Value="Visible" />
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>
-                    </TextBlock.Style>
-                </TextBlock>
+                    </views:WordReaderView.Style>
+                </views:WordReaderView>
             </Grid>
         </Border>
 

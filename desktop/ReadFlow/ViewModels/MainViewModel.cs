@@ -26,11 +26,9 @@ namespace ReadFlow.ViewModels
 
         private string _text = string.Empty;
         private TextStats _stats = TextStats.Empty;
+        private ReadingDocument _document = ReadingDocument.Empty;
         private ThemeDescriptor _selectedTheme;
-
-        // Слова з межами. Потрібні Задачі 4 (тултіп «Слово №N») і Задачі 7 (межа читання);
-        // тут зберігаються, щоб не розбирати текст двічі.
-        private IReadOnlyList<WordToken> _words = new List<WordToken>(0);
+        private bool _isReadingMode;
 
         public MainViewModel()
         {
@@ -70,6 +68,34 @@ namespace ReadFlow.ViewModels
             private set { Set(ref _stats, value); }
         }
 
+        /// <summary>
+        /// Текст із розібраними словами для режиму читання.
+        /// Оновлюється разом зі статистикою — з того самого розбору.
+        /// </summary>
+        public ReadingDocument Document
+        {
+            get { return _document; }
+            private set { Set(ref _document, value); }
+        }
+
+        /// <summary>
+        /// Режим читання (послівний перегляд) замість режиму редагування.
+        /// </summary>
+        public bool IsReadingMode
+        {
+            get { return _isReadingMode; }
+            set
+            {
+                if (Set(ref _isReadingMode, value) && value)
+                {
+                    // Перемикання може статися до того, як спрацює дебаунс, — тоді
+                    // вчитель побачив би нумерацію попереднього тексту. Тому дорахунок
+                    // примусово, не чекаючи таймера.
+                    RecalculateNow();
+                }
+            }
+        }
+
         /// <summary>Список доступних тем. Формується з файлів у <c>Themes/</c>.</summary>
         public IReadOnlyList<ThemeDescriptor> Themes { get; private set; }
 
@@ -93,8 +119,11 @@ namespace ReadFlow.ViewModels
         public void RecalculateNow()
         {
             _recalculateTimer.Stop();
-            _words = TextStatsCalculator.GetWords(_text);
-            Stats = TextStatsCalculator.Calculate(_text, _words, _countingOptions);
+
+            var words = TextStatsCalculator.GetWords(_text);
+
+            Stats = TextStatsCalculator.Calculate(_text, words, _countingOptions);
+            Document = new ReadingDocument(_text, words);
         }
 
         private void RestartDebounce()

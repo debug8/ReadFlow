@@ -105,6 +105,40 @@ namespace ReadFlow.Tests
         }
 
         [TestMethod]
+        public void SwitchingToReadingMode_FlushesPendingDebounce()
+        {
+            StaRunner.Run(() =>
+            {
+                // Без примусового дорахунку вчитель побачив би нумерацію
+                // попереднього тексту: дебаунс ще не спрацював.
+                var viewModel = new MainViewModel { Text = "Мама мила раму" };
+                Assert.AreEqual(0, viewModel.Document.Words.Count);
+
+                viewModel.IsReadingMode = true;
+
+                Assert.AreEqual(3, viewModel.Document.Words.Count);
+                Assert.AreEqual("Мама мила раму", viewModel.Document.Text);
+            });
+        }
+
+        [TestMethod]
+        public void Document_StaysInSyncWithStats()
+        {
+            StaRunner.Run(() =>
+            {
+                var viewModel = new MainViewModel { Text = "Раз два три чотири" };
+
+                viewModel.RecalculateNow();
+
+                Assert.AreEqual(
+                    viewModel.Stats.WordCount,
+                    viewModel.Document.Words.Count,
+                    "Статистика й режим читання мають рахувати ті самі слова.");
+                Assert.AreEqual(viewModel.Text, viewModel.Document.Text);
+            });
+        }
+
+        [TestMethod]
         public void ClearingText_ResetsStatsToZero()
         {
             StaRunner.Run(() =>
