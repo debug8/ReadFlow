@@ -44,6 +44,29 @@ android {
     }
 }
 
+/**
+ * Спільні дані обох платформ (норми WPM і тексти-зразки) лежать у `shared/`
+ * і не дублюються в коді Android — це непорушне правило №2 проєкту.
+ * У рантаймі Android папки `shared/` не існує, тому вона синхронізується в assets
+ * на етапі збірки.
+ *
+ * `Sync`, а не `Copy`: `Copy` не прибирає з призначення файли, яких уже немає
+ * в джерелі, і видалений зразок лишався б у зібраному APK до наступного `clean`.
+ */
+val syncSharedAssets by tasks.registering(Sync::class) {
+    from(rootProject.file("../shared")) {
+        include("norms.json", "samples/**")
+        exclude("**/README.md")
+    }
+    into(layout.buildDirectory.dir("generated/sharedAssets"))
+}
+
+android {
+    sourceSets["main"].assets.srcDir(layout.buildDirectory.dir("generated/sharedAssets"))
+}
+
+tasks.named("preBuild") { dependsOn(syncSharedAssets) }
+
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

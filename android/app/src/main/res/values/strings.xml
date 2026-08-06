@@ -5,18 +5,38 @@
 
     <!-- Зона тексту -->
     <string name="text_placeholder">Вставте текст або оберіть зразок</string>
-    <string name="cd_text_zone">Поле тексту</string>
+    <string name="action_paste">Вставити</string>
+    <string name="action_choose_sample">Обрати зразок</string>
+    <string name="action_clear">Очистити</string>
+    <string name="clipboard_empty">У буфері обміну немає тексту</string>
+
+    <!-- Аркуш вибору зразка -->
+    <string name="samples_title">Тексти-зразки</string>
+    <string name="samples_empty">Зразків ще немає. Додайте тексти в shared/samples/ і перезберіть додаток.</string>
+    <string name="samples_grade">%1$d клас</string>
+    <string name="samples_item_summary">%1$s · %2$s</string>
 
     <!-- Компактний рядок статистики -->
     <string name="stat_words">Слова</string>
     <string name="stat_chars">Знаки</string>
     <string name="stat_letters">Букви</string>
     <string name="stat_avg_word_length">Сер. довжина</string>
-    <string name="stat_empty_value">—</string>
-    <string name="cd_stats_row">Рядок статистики</string>
+    <string name="stat_chars_no_spaces">Без пробілів</string>
+    <string name="stat_sentences">Речення</string>
+    <string name="stat_paragraphs">Абзаци</string>
+    <string name="cd_stats_row">Рядок статистики, тап розгортає</string>
 
     <!-- Нижня панель керування -->
     <string name="timer_zero">00:00</string>
     <string name="action_start">Старт</string>
-    <string name="cd_control_panel">Панель керування</string>
+
+    <!--
+        Форми множини для слова «слово». Вибір робиться в коді
+        (net.readflow.ui.UkrainianPlurals), а не через <plurals>: системні правила
+        множини беруться з локалі телефона, тож на англомовному апараті Android
+        обрав би англійське правило й показав «15 слова».
+    -->
+    <string name="sample_words_one">%1$d слово</string>
+    <string name="sample_words_few">%1$d слова</string>
+    <string name="sample_words_many">%1$d слів</string>
 </resources>
