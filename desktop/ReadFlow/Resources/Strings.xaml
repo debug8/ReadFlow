@@ -52,6 +52,7 @@
     <sys:String x:Key="Str_HotkeyHint">Пробіл — старт і стоп, Esc — скидання</sys:String>
 
     <!-- Підсумок заміру -->
+    <sys:String x:Key="Str_ResultWordsRead">Прочитано слів</sys:String>
     <sys:String x:Key="Str_ResultTime">Час читання</sys:String>
     <sys:String x:Key="Str_ResultWpm">Слів за хвилину</sys:String>
     <sys:String x:Key="Str_ResultCpm">Знаків за хвилину</sys:String>

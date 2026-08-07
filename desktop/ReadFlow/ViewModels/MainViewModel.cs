@@ -12,9 +12,8 @@ using ReadFlow.Properties;
 namespace ReadFlow.ViewModels
 {
     /// <summary>
-    /// ViewModel головного вікна: текст, статистика й налаштування.
-    /// Таймер і режими вимірювання зʼявляться в Задачах 6–8; тут поки що
-    /// зберігається лише вибір режиму.
+    /// ViewModel головного вікна: текст, статистика, налаштування й замір.
+    /// Відмітка помилок (режим C) зʼявиться в Задачі 8.
     /// </summary>
     public class MainViewModel : ViewModelBase
     {
@@ -40,6 +39,10 @@ namespace ReadFlow.ViewModels
         private bool _hasResult;
         private int _wordsPerMinute;
         private int _charsPerMinute;
+        private int _boundaryWordNumber;
+
+        // Час, за яким порахований підсумок. У режимі B це показ секундоміра,
+        // у режимі A — задана тривалість; заповнюється в CaptureResultTime.
         private TimeSpan _resultElapsed;
 
         private string _text = string.Empty;
@@ -74,6 +77,7 @@ namespace ReadFlow.ViewModels
             ToggleSettingsCommand = new RelayCommand(() => IsSettingsExpanded = !IsSettingsExpanded);
             ToggleMeasurementCommand = new RelayCommand(ToggleMeasurement);
             ResetMeasurementCommand = new RelayCommand(ResetMeasurement);
+            SelectWordCommand = new RelayCommand<object>(OnSelectWord);
 
             Themes = ThemeManager.AvailableThemes;
 
@@ -100,7 +104,9 @@ namespace ReadFlow.ViewModels
                 }
 
                 // Підсумок стосується конкретного тексту. Змінили текст —
-                // старі WPM більше ні про що не свідчать.
+                // старі WPM більше ні про що не свідчать, а межа читання вказує
+                // на слово, якого в новому тексті може вже й не бути.
+                BoundaryWordNumber = 0;
                 HasResult = false;
                 RestartDebounce();
             }
@@ -266,9 +272,20 @@ namespace ReadFlow.ViewModels
                     ? MinTimerSeconds
                     : (value > MaxTimerSeconds ? MaxTimerSeconds : value);
 
-                if (Set(ref _timerSeconds, clamped))
+                if (!Set(ref _timerSeconds, clamped))
                 {
-                    SaveSetting(() => Settings.Default.TimerSeconds = clamped);
+                    return;
+                }
+
+                SaveSetting(() => Settings.Default.TimerSeconds = clamped);
+
+                // У режимі A саме ця тривалість — знаменник у формулі швидкості.
+                // Змінили її з готовим підсумком — підсумок мусить наздогнати,
+                // інакше на екрані лишиться WPM, порахований за старим часом.
+                if (HasResult && MeasurementMode == MeasurementMode.ClickStop)
+                {
+                    CaptureResultTime();
+                    UpdateResult();
                 }
             }
         }
@@ -316,12 +333,51 @@ namespace ReadFlow.ViewModels
         }
 
         /// <summary>
-        /// Скільки слів вважати прочитаними. Поки що весь текст;
-        /// у Задачі 7 сюди прийде слово-межа з режиму A.
+        /// Номер слова, на якому учень зупинився, або 0, якщо межі немає.
+        /// Задається кліком по слову в режимі читання.
+        /// </summary>
+        public int BoundaryWordNumber
+        {
+            get { return _boundaryWordNumber; }
+            private set
+            {
+                if (!Set(ref _boundaryWordNumber, value))
+                {
+                    return;
+                }
+
+                OnPropertyChanged("HasBoundary");
+                OnPropertyChanged("WordsRead");
+                OnPropertyChanged("CharsRead");
+            }
+        }
+
+        /// <summary>Чи позначено слово-межу.</summary>
+        public bool HasBoundary
+        {
+            get { return _boundaryWordNumber > 0; }
+        }
+
+        /// <summary>
+        /// Клік по слову в режимі читання. Параметр — номер слова.
+        /// </summary>
+        public ICommand SelectWordCommand { get; private set; }
+
+        /// <summary>
+        /// Скільки слів вважати прочитаними: до слова-межі включно, а якщо
+        /// межі немає — весь текст (специфікація, 4.7).
+        ///
+        /// Слова нумеруються поспіль від 1, тож номер межі — це і є кількість
+        /// слів до неї включно.
         /// </summary>
         public int WordsRead
         {
-            get { return Stats.WordCount; }
+            get
+            {
+                return _boundaryWordNumber > 0 && _boundaryWordNumber <= Stats.WordCount
+                    ? _boundaryWordNumber
+                    : Stats.WordCount;
+            }
         }
 
         /// <summary>
@@ -330,7 +386,14 @@ namespace ReadFlow.ViewModels
         /// </summary>
         public int CharsRead
         {
-            get { return Stats.CharCountNoSpaces; }
+            get
+            {
+                var boundary = Document.WordByNumber(_boundaryWordNumber);
+
+                return boundary == null
+                    ? Stats.CharCountNoSpaces
+                    : TextStatsCalculator.CountCharsNoSpaces(Document.Text, boundary.End);
+            }
         }
 
         /// <summary>Старт або стоп заміру. Гаряча клавіша — Пробіл.</summary>
@@ -345,12 +408,19 @@ namespace ReadFlow.ViewModels
             get { return _measurementMode; }
             set
             {
-                if (Set(ref _measurementMode, value))
+                if (!Set(ref _measurementMode, value))
                 {
-                    SaveSetting(() => Settings.Default.MeasurementMode = (int)value);
-                    OnPropertyChanged("IsClickStopMode");
-                    OnPropertyChanged("IsTimerMode");
+                    return;
                 }
+
+                SaveSetting(() => Settings.Default.MeasurementMode = (int)value);
+                OnPropertyChanged("IsClickStopMode");
+                OnPropertyChanged("IsTimerMode");
+
+                // Режими беруть час із різних джерел (4.8), тож підсумок,
+                // порахований за правилами попереднього режиму, більше не чинний.
+                // Межу лишаємо: вона про те, де учень зупинився, а не про час.
+                HasResult = false;
             }
         }
 
@@ -431,6 +501,14 @@ namespace ReadFlow.ViewModels
             Stats = TextStatsCalculator.Calculate(_text, words, _countingOptions);
             Document = new ReadingDocument(_text, words);
 
+            // Підстраховка: зміна тексту межу скидає, але якщо колись перерахунок
+            // почнуть викликати ще звідкись, межа не має пережити текст, у якому
+            // такого слова вже немає.
+            if (_boundaryWordNumber > words.Count)
+            {
+                BoundaryWordNumber = 0;
+            }
+
             OnPropertyChanged("WordsRead");
             OnPropertyChanged("CharsRead");
         }
@@ -463,6 +541,10 @@ namespace ReadFlow.ViewModels
             RecalculateNow();
 
             _readingTimer.Duration = TimeSpan.FromSeconds(TimerSeconds);
+
+            // Новий замір — з чистого аркуша: межа від попереднього учня
+            // мовчки зрізала б половину тексту.
+            BoundaryWordNumber = 0;
             HasResult = false;
             _readingTimer.Start();
 
@@ -472,25 +554,121 @@ namespace ReadFlow.ViewModels
         private void StopMeasurement()
         {
             _readingTimer.Stop();
-            _resultElapsed = _readingTimer.Elapsed;
+            CaptureResultTime();
 
-            var seconds = (decimal)_resultElapsed.TotalSeconds;
-            WordsPerMinute = SpeedCalculator.WordsPerMinute(WordsRead, seconds);
-            CharsPerMinute = SpeedCalculator.CharsPerMinute(CharsRead, seconds);
+            // У режимі A підсумок має сенс лише з позначеною межею: без неї
+            // невідомо, скільки учень прочитав, а час і так заданий наперед.
+            HasResult = MeasurementMode == MeasurementMode.ClickStop
+                ? HasBoundary
+                : _readingTimer.Elapsed > TimeSpan.Zero;
 
-            HasResult = _resultElapsed > TimeSpan.Zero;
+            if (HasResult)
+            {
+                UpdateResult();
+            }
 
             OnPropertyChanged("IsMeasuring");
-            OnPropertyChanged("ResultElapsedDisplay");
         }
 
         private void ResetMeasurement()
         {
             _readingTimer.Reset();
+            BoundaryWordNumber = 0;
             HasResult = false;
 
             OnPropertyChanged("IsMeasuring");
             OnPropertyChanged("ElapsedDisplay");
+        }
+
+        /// <summary>
+        /// Клік по слову — режим A «клік = стоп».
+        /// </summary>
+        private void OnSelectWord(object parameter)
+        {
+            int number;
+            if (!TryGetWordNumber(parameter, out number))
+            {
+                return;
+            }
+
+            // Клік по слову, якого в тексті немає (номер від попереднього тексту),
+            // краще проігнорувати, ніж показати межу поза текстом.
+            if (Document.WordByNumber(number) == null)
+            {
+                return;
+            }
+
+            // Повторний клік по слову-межі знімає її: вчитель може виправити
+            // випадковий клік, не шукаючи окремої кнопки.
+            BoundaryWordNumber = number == _boundaryWordNumber ? 0 : number;
+
+            if (MeasurementMode == MeasurementMode.ClickStop)
+            {
+                // Клік = стоп. Відлік зупиняється, але в формулу йде задана
+                // тривалість, а не показ секундоміра (специфікація, 4.8):
+                // вчитель клікає в момент, коли час минув.
+                _readingTimer.Stop();
+                CaptureResultTime();
+
+                HasResult = HasBoundary;
+
+                OnPropertyChanged("IsMeasuring");
+            }
+
+            // У режимі B клік лише переносить межу — час рахує секундомір,
+            // і зупиняє його Стоп. Якщо замір уже завершено, підсумок
+            // перераховується під нову кількість прочитаних слів (2.2).
+            if (HasResult)
+            {
+                UpdateResult();
+            }
+        }
+
+        /// <summary>
+        /// Запамʼятати час, за яким рахується підсумок.
+        ///
+        /// Режим A бере задану тривалість, режим B — показ секундоміра. Обидва
+        /// шляхи сходяться тут: інакше поруч могли б опинитися час читання з
+        /// секундоміра й WPM, порахований за іншим числом.
+        /// </summary>
+        private void CaptureResultTime()
+        {
+            _resultElapsed = MeasurementMode == MeasurementMode.ClickStop
+                ? TimeSpan.FromSeconds(TimerSeconds)
+                : _readingTimer.Elapsed;
+
+            OnPropertyChanged("ResultElapsedDisplay");
+        }
+
+        private void UpdateResult()
+        {
+            var seconds = (decimal)_resultElapsed.TotalSeconds;
+
+            WordsPerMinute = SpeedCalculator.WordsPerMinute(WordsRead, seconds);
+            CharsPerMinute = SpeedCalculator.CharsPerMinute(CharsRead, seconds);
+        }
+
+        /// <summary>
+        /// Номер слова з параметра команди. Привʼязка може принести і число,
+        /// і рядок, тому обидва варіанти читаються тут, а не в розмітці.
+        /// </summary>
+        private static bool TryGetWordNumber(object parameter, out int number)
+        {
+            if (parameter is int)
+            {
+                number = (int)parameter;
+                return number > 0;
+            }
+
+            var text = parameter as string;
+            if (text != null &&
+                int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out number))
+            {
+                return number > 0;
+            }
+
+            number = 0;
+            return false;
         }
 
         private void OnReadingTimerTick(object sender, EventArgs e)

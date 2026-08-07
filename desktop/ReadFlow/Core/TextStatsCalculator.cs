@@ -156,6 +156,43 @@ namespace ReadFlow.Core
                 CountParagraphs(normalized, mode));
         }
 
+        /// <summary>
+        /// Скільки знаків без пробілів у тексті до позиції <paramref name="endIndex"/>
+        /// (не включно).
+        ///
+        /// Потрібно для «знаків за хвилину», коли читання зупинилося на слові-межі:
+        /// у формулу мають піти знаки лише до неї (специфікація, 4.7).
+        ///
+        /// Нормалізувати переноси рядків тут не треба, і це не недогляд: і <c>\r</c>,
+        /// і <c>\n</c> — пробільні символи, тож у підрахунок без пробілів вони не
+        /// потрапляють у жодному разі. А індекси слів — від вихідного тексту, тож
+        /// нормалізація ще й зсунула б їх.
+        /// </summary>
+        public static int CountCharsNoSpaces(string text, int endIndex)
+        {
+            if (string.IsNullOrEmpty(text) || endIndex <= 0)
+            {
+                return 0;
+            }
+
+            if (endIndex > text.Length)
+            {
+                endIndex = text.Length;
+            }
+
+            var count = 0;
+
+            for (var i = 0; i < endIndex; i++)
+            {
+                if (!char.IsWhiteSpace(text[i]))
+                {
+                    count++;
+                }
+            }
+
+            return count;
+        }
+
         /// <summary>Буква — Unicode-літера або цифра (специфікація, 4.1).</summary>
         public static bool IsLetter(char c)
         {

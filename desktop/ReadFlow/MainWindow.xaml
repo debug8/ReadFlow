@@ -302,7 +302,9 @@
 
                 <!-- Режим читання. Схований контрол не будує Runʼи — див. WordReaderView. -->
                 <views:WordReaderView Grid.Row="1"
-                                      Document="{Binding Document}">
+                                      Document="{Binding Document}"
+                                      BoundaryWordNumber="{Binding BoundaryWordNumber, Mode=OneWay}"
+                                      WordCommand="{Binding SelectWordCommand}">
                     <views:WordReaderView.Style>
                         <Style TargetType="views:WordReaderView">
                             <Setter Property="Visibility" Value="Collapsed" />
@@ -413,37 +415,59 @@
                             MinWidth="86" Height="32"
                             VerticalAlignment="Center" />
 
-                    <!-- Підсумок зʼявляється лише після завершеного заміру,
-                         щоб порожні нулі не збивали з пантелику. -->
                     <StackPanel Orientation="Horizontal" Margin="24,0,0,0">
-                        <StackPanel.Style>
-                            <Style TargetType="StackPanel">
-                                <Setter Property="Visibility" Value="Collapsed" />
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding HasResult}" Value="True">
-                                        <Setter Property="Visibility" Value="Visible" />
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </StackPanel.Style>
+                        <!-- Прочитані слова зʼявляються, щойно позначено межу:
+                             у режимі B це видно ще до Стопу, коли підсумку немає. -->
+                        <StackPanel>
+                            <StackPanel.Style>
+                                <Style TargetType="StackPanel" BasedOn="{StaticResource StatBlockStyle}">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasBoundary}" Value="True">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </StackPanel.Style>
 
-                        <StackPanel Style="{StaticResource StatBlockStyle}">
                             <TextBlock Style="{StaticResource StatValueStyle}"
-                                       Text="{Binding ResultElapsedDisplay}" />
+                                       Text="{Binding WordsRead, StringFormat={}{0:N0}}" />
                             <TextBlock Style="{StaticResource StatCaptionStyle}"
-                                       Text="{StaticResource Str_ResultTime}" />
+                                       Text="{StaticResource Str_ResultWordsRead}" />
                         </StackPanel>
-                        <StackPanel Style="{StaticResource StatBlockStyle}">
-                            <TextBlock Style="{StaticResource StatValueStyle}"
-                                       Text="{Binding WordsPerMinute, StringFormat={}{0:N0}}" />
-                            <TextBlock Style="{StaticResource StatCaptionStyle}"
-                                       Text="{StaticResource Str_ResultWpm}" />
-                        </StackPanel>
-                        <StackPanel Style="{StaticResource StatBlockStyle}">
-                            <TextBlock Style="{StaticResource StatValueStyle}"
-                                       Text="{Binding CharsPerMinute, StringFormat={}{0:N0}}" />
-                            <TextBlock Style="{StaticResource StatCaptionStyle}"
-                                       Text="{StaticResource Str_ResultCpm}" />
+
+                        <!-- Підсумок зʼявляється лише після завершеного заміру,
+                             щоб порожні нулі не збивали з пантелику. -->
+                        <StackPanel Orientation="Horizontal">
+                            <StackPanel.Style>
+                                <Style TargetType="StackPanel">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasResult}" Value="True">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </StackPanel.Style>
+
+                            <StackPanel Style="{StaticResource StatBlockStyle}">
+                                <TextBlock Style="{StaticResource StatValueStyle}"
+                                           Text="{Binding ResultElapsedDisplay}" />
+                                <TextBlock Style="{StaticResource StatCaptionStyle}"
+                                           Text="{StaticResource Str_ResultTime}" />
+                            </StackPanel>
+                            <StackPanel Style="{StaticResource StatBlockStyle}">
+                                <TextBlock Style="{StaticResource StatValueStyle}"
+                                           Text="{Binding WordsPerMinute, StringFormat={}{0:N0}}" />
+                                <TextBlock Style="{StaticResource StatCaptionStyle}"
+                                           Text="{StaticResource Str_ResultWpm}" />
+                            </StackPanel>
+                            <StackPanel Style="{StaticResource StatBlockStyle}">
+                                <TextBlock Style="{StaticResource StatValueStyle}"
+                                           Text="{Binding CharsPerMinute, StringFormat={}{0:N0}}" />
+                                <TextBlock Style="{StaticResource StatCaptionStyle}"
+                                           Text="{StaticResource Str_ResultCpm}" />
+                            </StackPanel>
                         </StackPanel>
                     </StackPanel>
                 </StackPanel>

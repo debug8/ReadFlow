@@ -1,4 +1,5 @@
-﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+using ReadFlow.Core;
 using ReadFlow.ViewModels;
 
 namespace ReadFlow.Tests
@@ -10,10 +11,23 @@ namespace ReadFlow.Tests
     /// і реальний годинник, тож тест на «минула секунда» був би повільним
     /// і нестабільним. Формули покриті окремо в <see cref="SpeedCalculatorTests"/>,
     /// а тут — стан: що з чого вмикається й що обнуляється.
+    ///
+    /// Спосіб заміру задається явно: він зберігається між запусками, тож інакше
+    /// тест залежав би від того, чим користувалися минулого разу. Межа читання —
+    /// в <see cref="ReadingBoundaryTests"/>.
     /// </summary>
     [TestClass]
     public class MeasurementViewModelTests
     {
+        private static MainViewModel TimerModeViewModel(string text)
+        {
+            return new MainViewModel
+            {
+                MeasurementMode = MeasurementMode.Timer,
+                Text = text
+            };
+        }
+
         [TestMethod]
         public void NewViewModel_HasNoResultAndZeroClock()
         {
@@ -32,7 +46,7 @@ namespace ReadFlow.Tests
         {
             StaRunner.Run(() =>
             {
-                var viewModel = new MainViewModel { Text = "Мама мила раму" };
+                var viewModel = TimerModeViewModel("Мама мила раму");
 
                 viewModel.ToggleMeasurementCommand.Execute(null);
                 Assert.IsTrue(viewModel.IsMeasuring);
@@ -49,7 +63,7 @@ namespace ReadFlow.Tests
             {
                 // Без дорахунку замір рахувався б за кількістю слів
                 // попереднього тексту: дебаунс ще не спрацював.
-                var viewModel = new MainViewModel { Text = "Мама мила раму" };
+                var viewModel = TimerModeViewModel("Мама мила раму");
                 Assert.AreEqual(0, viewModel.WordsRead);
 
                 viewModel.ToggleMeasurementCommand.Execute(null);
@@ -63,7 +77,7 @@ namespace ReadFlow.Tests
         {
             StaRunner.Run(() =>
             {
-                var viewModel = new MainViewModel { Text = "Мама мила раму" };
+                var viewModel = TimerModeViewModel("Мама мила раму");
                 viewModel.ToggleMeasurementCommand.Execute(null);
                 viewModel.ToggleMeasurementCommand.Execute(null);
 
@@ -80,7 +94,7 @@ namespace ReadFlow.Tests
         {
             StaRunner.Run(() =>
             {
-                var viewModel = new MainViewModel { Text = "Мама мила раму" };
+                var viewModel = TimerModeViewModel("Мама мила раму");
                 viewModel.ToggleMeasurementCommand.Execute(null);
                 viewModel.ToggleMeasurementCommand.Execute(null);
 
@@ -97,7 +111,7 @@ namespace ReadFlow.Tests
         {
             StaRunner.Run(() =>
             {
-                var viewModel = new MainViewModel { Text = "Мама мила раму" };
+                var viewModel = TimerModeViewModel("Мама мила раму");
                 viewModel.RecalculateNow();
 
                 // 12 букв, три слова, два пробіли: 14 знаків усього, 12 без пробілів.
@@ -107,15 +121,16 @@ namespace ReadFlow.Tests
         }
 
         [TestMethod]
-        public void WordsRead_IsWholeTextUntilBoundaryExists()
+        public void WordsRead_IsWholeTextWithoutBoundary()
         {
             StaRunner.Run(() =>
             {
-                // Межа читання зʼявиться в Задачі 7; поки що прочитаним
-                // вважається весь текст.
-                var viewModel = new MainViewModel { Text = "Раз два три чотири пʼять" };
+                // Поки вчитель не клікнув слово, прочитаним вважається весь текст
+                // (специфікація, 4.7).
+                var viewModel = TimerModeViewModel("Раз два три чотири пʼять");
                 viewModel.RecalculateNow();
 
+                Assert.IsFalse(viewModel.HasBoundary);
                 Assert.AreEqual(viewModel.Stats.WordCount, viewModel.WordsRead);
             });
         }

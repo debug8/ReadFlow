@@ -56,6 +56,27 @@ namespace ReadFlow.Models
         public IReadOnlyList<WordToken> Words { get; private set; }
 
         /// <summary>
+        /// Слово за порядковим номером (від 1) або <c>null</c>, якщо такого немає.
+        ///
+        /// Номер може прийти з попереднього тексту — вчитель клікнув слово, а тоді
+        /// текст замінили. Тоді краще повернути <c>null</c>, ніж кинути виняток
+        /// або мовчки взяти чуже слово.
+        /// </summary>
+        public WordToken WordByNumber(int number)
+        {
+            if (number < 1 || number > Words.Count)
+            {
+                return null;
+            }
+
+            var word = Words[number - 1];
+
+            // Слова нумеруються поспіль від 1, тож номер має збігтися з позицією.
+            // Якщо ні — список зібрано не тим кодом, і покладатися на нього не можна.
+            return word.Number == number ? word : null;
+        }
+
+        /// <summary>
         /// Розбити текст на послідовність слів і роздільників.
         ///
         /// Логіка живе в моделі, а не у View: її треба покрити тестами, а тест
