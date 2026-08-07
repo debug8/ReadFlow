@@ -8,6 +8,9 @@
     <OutputType>WinExe</OutputType>
     <RootNamespace>ReadFlow</RootNamespace>
     <AssemblyName>ReadFlow</AssemblyName>
+    <!-- Іконка .exe. Окремо задавати Window.Icon не треба: коли він порожній,
+         WPF бере іконку виконуваного файла — і в заголовку, і на панелі задач. -->
+    <ApplicationIcon>Resources\ReadFlow.ico</ApplicationIcon>
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <ProjectTypeGuids>{60dc8134-eba5-43b8-bcc9-bb4bc16c2548};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
@@ -131,6 +134,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
+    <!-- None, а не Resource: файл потрібен збірці як ApplicationIcon і вже
+         вшивається в .exe. Другий раз як ресурс він там ні до чого. -->
+    <None Include="Resources\ReadFlow.ico" />
     <!-- Сигнал завершення заданої тривалості. Resource, а не Content:
          звук має лежати всередині .exe, а не поруч із ним. -->
     <Resource Include="Resources\timer-end.wav" />
