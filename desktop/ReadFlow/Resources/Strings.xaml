@@ -10,6 +10,17 @@
 
     <sys:String x:Key="Str_AppTitle">ReadFlow</sys:String>
 
+    <!-- Меню -->
+    <sys:String x:Key="Str_MenuHelp">Довідка</sys:String>
+    <sys:String x:Key="Str_MenuAbout">Про програму</sys:String>
+
+    <!-- Вікно «Про програму» -->
+    <sys:String x:Key="Str_AboutTitle">Про програму</sys:String>
+    <sys:String x:Key="Str_AboutVersionFormat">Версія {0}</sys:String>
+    <sys:String x:Key="Str_AboutTagline">Підрахунок слів у тексті й перевірка швидкості читання учнів.</sys:String>
+    <sys:String x:Key="Str_AboutDescription">Вставте текст — застосунок одразу порахує слова, знаки, букви, речення й абзаци.&#x0a;&#x0a;Щоб перевірити швидкість читання, увімкніть «Режим читання» над текстом і клікніть слово, на якому учень зупинився. Пробіл запускає й зупиняє замір, Esc скидає його.&#x0a;&#x0a;Дані нікуди не надсилаються: застосунок працює без мережі й без облікових записів.</sys:String>
+    <sys:String x:Key="Str_AboutClose">Закрити</sys:String>
+
     <!-- Ліва панель налаштувань -->
     <sys:String x:Key="Str_SettingsHeader">Налаштування</sys:String>
     <sys:String x:Key="Str_CollapsePanel">Згорнути панель налаштувань</sys:String>

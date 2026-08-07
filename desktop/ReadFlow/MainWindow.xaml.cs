@@ -2,6 +2,7 @@
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using ReadFlow.ViewModels;
+using ReadFlow.Views;
 
 namespace ReadFlow
 {
@@ -14,6 +15,19 @@ namespace ReadFlow
         public MainWindow()
         {
             InitializeComponent();
+        }
+
+        /// <summary>
+        /// Довідка → Про програму.
+        ///
+        /// Відкриття вікна лишається у View, а не в ViewModel: інакше ViewModel
+        /// мусила б знати про класи вікон, і її не можна було б перевірити тестом
+        /// без запуску інтерфейсу.
+        /// </summary>
+        private void OnAboutClick(object sender, RoutedEventArgs e)
+        {
+            var about = new AboutWindow { Owner = this };
+            about.ShowDialog();
         }
 
         /// <summary>

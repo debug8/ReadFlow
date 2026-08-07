@@ -1,0 +1,60 @@
+<Window x:Class="ReadFlow.Views.AboutWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="{StaticResource Str_AboutTitle}"
+        Width="440"
+        SizeToContent="Height"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner"
+        xml:lang="uk-UA"
+        Background="{DynamicResource AppBackgroundBrush}"
+        Foreground="{DynamicResource TextForegroundBrush}">
+
+    <!--
+        SizeToContent="Height" — щоб вікно підбирало висоту під текст: за іншого
+        розміру шрифту або довшого перекладу фіксована висота обрізала б останній
+        рядок, а смуги прокрутки в такому вікні виглядали б безглуздо.
+    -->
+
+    <StackPanel Margin="24,20,24,20">
+        <TextBlock Text="{StaticResource Str_AppTitle}"
+                   FontSize="28" FontWeight="SemiBold"
+                   Foreground="{DynamicResource TextForegroundBrush}" />
+
+        <TextBlock x:Name="VersionText"
+                   Margin="0,2,0,0"
+                   FontSize="12"
+                   Foreground="{DynamicResource SecondaryForegroundBrush}" />
+
+        <TextBlock Text="{StaticResource Str_AboutTagline}"
+                   Margin="0,14,0,0"
+                   TextWrapping="Wrap"
+                   FontSize="14"
+                   Foreground="{DynamicResource TextForegroundBrush}" />
+
+        <TextBlock Text="{StaticResource Str_AboutDescription}"
+                   Margin="0,10,0,0"
+                   TextWrapping="Wrap"
+                   LineHeight="20"
+                   LineStackingStrategy="BlockLineHeight"
+                   Foreground="{DynamicResource SecondaryForegroundBrush}" />
+
+        <Border Margin="0,16,0,0"
+                BorderThickness="0,1,0,0"
+                BorderBrush="{DynamicResource BorderBrush}" />
+
+        <TextBlock x:Name="AuthorText"
+                   Margin="0,12,0,0"
+                   FontSize="12"
+                   Foreground="{DynamicResource SecondaryForegroundBrush}" />
+
+        <Button Content="{StaticResource Str_AboutClose}"
+                IsCancel="True"
+                IsDefault="True"
+                Click="OnCloseClick"
+                Margin="0,18,0,0"
+                MinWidth="96" Height="30"
+                HorizontalAlignment="Right" />
+    </StackPanel>
+</Window>

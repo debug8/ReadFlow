@@ -79,12 +79,27 @@
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
+        <!-- Меню. Поки що єдиний пункт — довідка; решта керування навмисно
+             лишається на видноті, а не ховається сюди (специфікація, 3). -->
+        <Menu Grid.Row="0" Grid.ColumnSpan="2"
+              Background="{DynamicResource PanelBackgroundBrush}"
+              Foreground="{DynamicResource TextForegroundBrush}"
+              BorderBrush="{DynamicResource BorderBrush}"
+              BorderThickness="0,0,0,1">
+            <MenuItem Header="{StaticResource Str_MenuHelp}"
+                      Foreground="{DynamicResource TextForegroundBrush}">
+                <MenuItem Header="{StaticResource Str_MenuAbout}"
+                          Click="OnAboutClick" />
+            </MenuItem>
+        </Menu>
+
         <!-- ЗОНА 1: панель налаштувань. Згортається до вузької смужки з кнопкою. -->
-        <Border Grid.Column="0" Grid.RowSpan="2"
+        <Border Grid.Column="0" Grid.Row="1" Grid.RowSpan="2"
                 Background="{DynamicResource PanelBackgroundBrush}"
                 BorderBrush="{DynamicResource BorderBrush}"
                 BorderThickness="0,0,1,0">
@@ -234,7 +249,7 @@
         </Border>
 
         <!-- ЗОНА 2: текст -->
-        <Border Grid.Column="1" Grid.Row="0"
+        <Border Grid.Column="1" Grid.Row="1"
                 Margin="16"
                 BorderBrush="{DynamicResource BorderBrush}"
                 BorderThickness="1"
@@ -320,7 +335,7 @@
         </Border>
 
         <!-- ЗОНА 3: статистика й керування -->
-        <Border Grid.Column="1" Grid.Row="1"
+        <Border Grid.Column="1" Grid.Row="2"
                 Background="{DynamicResource PanelBackgroundBrush}"
                 BorderBrush="{DynamicResource BorderBrush}"
                 BorderThickness="0,1,0,0">
