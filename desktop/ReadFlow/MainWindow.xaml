@@ -319,7 +319,9 @@
                 <views:WordReaderView Grid.Row="1"
                                       Document="{Binding Document}"
                                       BoundaryWordNumber="{Binding BoundaryWordNumber, Mode=OneWay}"
-                                      WordCommand="{Binding SelectWordCommand}">
+                                      ErrorWords="{Binding ErrorWords, Mode=OneWay}"
+                                      WordCommand="{Binding SelectWordCommand}"
+                                      WordAlternateCommand="{Binding SetBoundaryCommand}">
                     <views:WordReaderView.Style>
                         <Style TargetType="views:WordReaderView">
                             <Setter Property="Visibility" Value="Collapsed" />
@@ -451,6 +453,34 @@
                                        Text="{StaticResource Str_ResultWordsRead}" />
                         </StackPanel>
 
+                        <!-- Помилки. Показуються, щойно позначено хоч одну,
+                             незалежно від того, чи завершено замір. -->
+                        <StackPanel Orientation="Horizontal">
+                            <StackPanel.Style>
+                                <Style TargetType="StackPanel">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasErrors}" Value="True">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </StackPanel.Style>
+
+                            <StackPanel Style="{StaticResource StatBlockStyle}">
+                                <TextBlock Style="{StaticResource StatValueStyle}"
+                                           Text="{Binding ErrorCount, StringFormat={}{0:N0}}" />
+                                <TextBlock Style="{StaticResource StatCaptionStyle}"
+                                           Text="{StaticResource Str_ResultErrors}" />
+                            </StackPanel>
+                            <StackPanel Style="{StaticResource StatBlockStyle}">
+                                <TextBlock Style="{StaticResource StatValueStyle}"
+                                           Text="{Binding ErrorPercent, StringFormat={}{0:N1} %}" />
+                                <TextBlock Style="{StaticResource StatCaptionStyle}"
+                                           Text="{StaticResource Str_ResultErrorPercent}" />
+                            </StackPanel>
+                        </StackPanel>
+
                         <!-- Підсумок зʼявляється лише після завершеного заміру,
                              щоб порожні нулі не збивали з пантелику. -->
                         <StackPanel Orientation="Horizontal">
@@ -483,12 +513,34 @@
                                 <TextBlock Style="{StaticResource StatCaptionStyle}"
                                            Text="{StaticResource Str_ResultCpm}" />
                             </StackPanel>
+
+                            <!-- «Чиста» швидкість має сенс лише коли є помилки:
+                                 без них вона дорівнює звичайній, і два однакові
+                                 числа поруч лише збивали б з пантелику. -->
+                            <StackPanel>
+                                <StackPanel.Style>
+                                    <Style TargetType="StackPanel" BasedOn="{StaticResource StatBlockStyle}">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding HasErrors}" Value="True">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </StackPanel.Style>
+
+                                <TextBlock Style="{StaticResource StatValueStyle}"
+                                           Text="{Binding CleanWordsPerMinute, StringFormat={}{0:N0}}" />
+                                <TextBlock Style="{StaticResource StatCaptionStyle}"
+                                           Text="{StaticResource Str_ResultCleanWpm}" />
+                            </StackPanel>
                         </StackPanel>
                     </StackPanel>
                 </StackPanel>
 
                 <TextBlock Text="{StaticResource Str_HotkeyHint}"
                            Margin="0,6,0,0"
+                           TextWrapping="Wrap"
                            FontSize="11"
                            Foreground="{DynamicResource SecondaryForegroundBrush}" />
             </StackPanel>

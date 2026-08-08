@@ -12,6 +12,12 @@ namespace ReadFlow.Tests
     /// звідки береться час у формулі (специфікація, 4.8) і коли межа зникає.
     /// Час у режимі A заданий наперед, тому WPM тут — точне число, а не «приблизно»:
     /// тести не залежать від реального годинника.
+    ///
+    /// Спосіб заміру й відмітка помилок задаються явно в кожному тесті. Це не
+    /// перестраховка: обидва зберігаються в <c>Properties.Settings</c>, а
+    /// <c>Settings.Default</c> — один обʼєкт на весь тестовий процес. Досить
+    /// іншому тесту ввімкнути відмітку помилок, і тут лівий клік почне позначати
+    /// помилку замість межі — тест упаде, і причина буде не там, де він упав.
     /// </summary>
     [TestClass]
     public class ReadingBoundaryTests
@@ -23,12 +29,23 @@ namespace ReadFlow.Tests
             var viewModel = new MainViewModel
             {
                 MeasurementMode = MeasurementMode.ClickStop,
+                MarkErrors = false,
                 TimerSeconds = 60,
                 Text = Text
             };
 
             viewModel.RecalculateNow();
             return viewModel;
+        }
+
+        private static MainViewModel TimerModeViewModel()
+        {
+            return new MainViewModel
+            {
+                MeasurementMode = MeasurementMode.Timer,
+                MarkErrors = false,
+                Text = Text
+            };
         }
 
         // ── Підрахунок знаків до межі ─────────────────────────────────────
@@ -217,11 +234,7 @@ namespace ReadFlow.Tests
         {
             StaRunner.Run(() =>
             {
-                var viewModel = new MainViewModel
-                {
-                    MeasurementMode = MeasurementMode.Timer,
-                    Text = Text
-                };
+                var viewModel = TimerModeViewModel();
 
                 viewModel.ToggleMeasurementCommand.Execute(null);
                 viewModel.SelectWordCommand.Execute(3);
@@ -238,11 +251,7 @@ namespace ReadFlow.Tests
         {
             StaRunner.Run(() =>
             {
-                var viewModel = new MainViewModel
-                {
-                    MeasurementMode = MeasurementMode.Timer,
-                    Text = Text
-                };
+                var viewModel = TimerModeViewModel();
 
                 viewModel.ToggleMeasurementCommand.Execute(null);
                 viewModel.ToggleMeasurementCommand.Execute(null);

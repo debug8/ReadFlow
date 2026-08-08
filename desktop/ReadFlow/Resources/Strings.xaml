@@ -60,10 +60,13 @@
     <sys:String x:Key="Str_TimerStart">Старт</sys:String>
     <sys:String x:Key="Str_TimerStop">Стоп</sys:String>
     <sys:String x:Key="Str_TimerReset">Скидання</sys:String>
-    <sys:String x:Key="Str_HotkeyHint">Пробіл — старт і стоп, Esc — скидання</sys:String>
+    <sys:String x:Key="Str_HotkeyHint">Пробіл — старт і стоп, Esc — скидання. У режимі читання: клік по слову — межа читання; коли ввімкнено «Відмічати помилки» — лівий клік позначає помилку, правий ставить межу.</sys:String>
 
     <!-- Підсумок заміру -->
     <sys:String x:Key="Str_ResultWordsRead">Прочитано слів</sys:String>
+    <sys:String x:Key="Str_ResultErrors">Помилки</sys:String>
+    <sys:String x:Key="Str_ResultErrorPercent">Помилок від прочитаного</sys:String>
+    <sys:String x:Key="Str_ResultCleanWpm">Чиста швидкість</sys:String>
     <sys:String x:Key="Str_ResultTime">Час читання</sys:String>
     <sys:String x:Key="Str_ResultWpm">Слів за хвилину</sys:String>
     <sys:String x:Key="Str_ResultCpm">Знаків за хвилину</sys:String>

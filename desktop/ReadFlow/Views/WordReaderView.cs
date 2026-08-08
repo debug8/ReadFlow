@@ -29,6 +29,7 @@ namespace ReadFlow.Views
 
         private const string BoundaryBrushKey = "WordBoundaryBrush";
         private const string HoverBrushKey = "WordHoverBrush";
+        private const string ErrorBrushKey = "WordErrorBrush";
 
         public static readonly DependencyProperty DocumentProperty = DependencyProperty.Register(
             "Document",
@@ -42,8 +43,20 @@ namespace ReadFlow.Views
             typeof(WordReaderView),
             new PropertyMetadata(0, OnBoundaryWordNumberChanged));
 
+        public static readonly DependencyProperty ErrorWordsProperty = DependencyProperty.Register(
+            "ErrorWords",
+            typeof(IReadOnlyCollection<int>),
+            typeof(WordReaderView),
+            new PropertyMetadata(null, OnErrorWordsChanged));
+
         public static readonly DependencyProperty WordCommandProperty = DependencyProperty.Register(
             "WordCommand",
+            typeof(ICommand),
+            typeof(WordReaderView),
+            new PropertyMetadata(null));
+
+        public static readonly DependencyProperty WordAlternateCommandProperty = DependencyProperty.Register(
+            "WordAlternateCommand",
             typeof(ICommand),
             typeof(WordReaderView),
             new PropertyMetadata(null));
@@ -53,6 +66,10 @@ namespace ReadFlow.Views
         // Runʼи слів за номером (номер − 1). Потрібні, щоб змінити тло одного слова,
         // не перебираючи тисячі інлайнів: підсвітка межі має бути миттєвою.
         private Run[] _wordRuns = new Run[0];
+
+        // Копія набору помилок: коли він змінюється, перемальовуються лише ті
+        // слова, що з'явилися або зникли, а не всі три тисячі.
+        private HashSet<int> _errorWordNumbers = new HashSet<int>();
 
         private int _hoveredWordNumber;
         private bool _needsRebuild = true;
@@ -78,6 +95,7 @@ namespace ReadFlow.Views
             _textBlock.SetResourceReference(TextBlock.LineHeightProperty, "TextLineHeight");
 
             _textBlock.MouseLeftButtonDown += OnTextMouseLeftButtonDown;
+            _textBlock.MouseRightButtonDown += OnTextMouseRightButtonDown;
             _textBlock.MouseMove += OnTextMouseMove;
             _textBlock.MouseLeave += OnTextMouseLeave;
 
@@ -105,11 +123,25 @@ namespace ReadFlow.Views
             set { SetValue(BoundaryWordNumberProperty, value); }
         }
 
-        /// <summary>Команда, яку викликає клік по слову. Параметр — номер слова.</summary>
+        /// <summary>Номери слів, позначених як помилки.</summary>
+        public IReadOnlyCollection<int> ErrorWords
+        {
+            get { return (IReadOnlyCollection<int>)GetValue(ErrorWordsProperty); }
+            set { SetValue(ErrorWordsProperty, value); }
+        }
+
+        /// <summary>Команда лівого кліку по слову. Параметр — номер слова.</summary>
         public ICommand WordCommand
         {
             get { return (ICommand)GetValue(WordCommandProperty); }
             set { SetValue(WordCommandProperty, value); }
+        }
+
+        /// <summary>Команда правого кліку по слову. Параметр — номер слова.</summary>
+        public ICommand WordAlternateCommand
+        {
+            get { return (ICommand)GetValue(WordAlternateCommandProperty); }
+            set { SetValue(WordAlternateCommandProperty, value); }
         }
 
         private static void OnDocumentChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
@@ -124,6 +156,33 @@ namespace ReadFlow.Views
             // Перемальовуємо рівно два слова: те, що перестало бути межею, і нове.
             view.ApplyWordBrush((int)e.OldValue);
             view.ApplyWordBrush((int)e.NewValue);
+        }
+
+        private static void OnErrorWordsChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            var view = (WordReaderView)d;
+
+            var updated = new HashSet<int>((IEnumerable<int>)e.NewValue ?? new int[0]);
+            var previous = view._errorWordNumbers;
+            view._errorWordNumbers = updated;
+
+            // Симетрична різниця: зазвичай це одне слово, яке щойно клікнули.
+            // Перебирати весь текст на кожну позначку було б помітно на 3000 слів.
+            foreach (var number in previous)
+            {
+                if (!updated.Contains(number))
+                {
+                    view.ApplyWordBrush(number);
+                }
+            }
+
+            foreach (var number in updated)
+            {
+                if (!previous.Contains(number))
+                {
+                    view.ApplyWordBrush(number);
+                }
+            }
         }
 
         /// <summary>
@@ -200,22 +259,31 @@ namespace ReadFlow.Views
             // розмітку, і на великому тексті перемикання в режим читання підвисає.
             _textBlock.Inlines.AddRange(inlines);
 
-            // Межа могла бути задана до того, як контрол став видимим.
+            // Межа й помилки могли бути задані до того, як контрол став видимим.
             ApplyWordBrush(BoundaryWordNumber);
+
+            foreach (var number in _errorWordNumbers)
+            {
+                ApplyWordBrush(number);
+            }
         }
 
         // ── Миша ──────────────────────────────────────────────────────────
 
         private void OnTextMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            var number = WordNumberAt(e.OriginalSource);
-            if (number == 0)
-            {
-                return;
-            }
+            Invoke(WordCommand, e);
+        }
 
-            var command = WordCommand;
-            if (command == null || !command.CanExecute(number))
+        private void OnTextMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            Invoke(WordAlternateCommand, e);
+        }
+
+        private static void Invoke(ICommand command, MouseButtonEventArgs e)
+        {
+            var number = WordNumberAt(e.OriginalSource);
+            if (number == 0 || command == null || !command.CanExecute(number))
             {
                 return;
             }
@@ -253,8 +321,12 @@ namespace ReadFlow.Views
         }
 
         /// <summary>
-        /// Привести тло слова до його стану: межа важливіша за наведення, бо
-        /// інакше межа гасла б рівно тоді, коли вчитель на неї дивиться.
+        /// Привести тло слова до його стану.
+        ///
+        /// Порядок важливий: помилка > межа > наведення. Помилка попереду тому,
+        /// що клік має давати видимий відгук: якби межа перекривала її, вчитель
+        /// клікнув би по слові-межі, нічого б не змінилося — і він вирішив би,
+        /// що застосунок його не почув. Скільки слів прочитано, видно з показника.
         /// </summary>
         private void ApplyWordBrush(int number)
         {
@@ -264,7 +336,11 @@ namespace ReadFlow.Views
                 return;
             }
 
-            if (number == BoundaryWordNumber)
+            if (_errorWordNumbers.Contains(number))
+            {
+                run.SetResourceReference(TextElement.BackgroundProperty, ErrorBrushKey);
+            }
+            else if (number == BoundaryWordNumber)
             {
                 // Через SetResourceReference, а не FindResource: інакше при зміні
                 // теми підсвічене слово лишилося б із кольором старої.

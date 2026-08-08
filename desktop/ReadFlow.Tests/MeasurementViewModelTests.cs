@@ -12,9 +12,11 @@ namespace ReadFlow.Tests
     /// і нестабільним. Формули покриті окремо в <see cref="SpeedCalculatorTests"/>,
     /// а тут — стан: що з чого вмикається й що обнуляється.
     ///
-    /// Спосіб заміру задається явно: він зберігається між запусками, тож інакше
-    /// тест залежав би від того, чим користувалися минулого разу. Межа читання —
-    /// в <see cref="ReadingBoundaryTests"/>.
+    /// Спосіб заміру й відмітка помилок задаються явно. Обидва зберігаються в
+    /// <c>Properties.Settings</c>, а <c>Settings.Default</c> — один обʼєкт на весь
+    /// тестовий процес: без цього тест залежав би і від минулого запуску, і від
+    /// того, який тест відпрацював перед ним. Межа читання й помилки —
+    /// у <see cref="ReadingBoundaryTests"/> та <see cref="ReadingErrorsTests"/>.
     /// </summary>
     [TestClass]
     public class MeasurementViewModelTests
@@ -24,6 +26,7 @@ namespace ReadFlow.Tests
             return new MainViewModel
             {
                 MeasurementMode = MeasurementMode.Timer,
+                MarkErrors = false,
                 Text = text
             };
         }

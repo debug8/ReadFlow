@@ -36,10 +36,19 @@ namespace ReadFlow.ViewModels
         private readonly CountingOptions _countingOptions = new CountingOptions();
         private readonly ReadingTimer _readingTimer = new ReadingTimer();
 
+        // Помилки зберігаються за номерами слів, а не за посиланнями на них:
+        // при перерахунку статистики слова створюються заново, і позначки
+        // з'їхали б на інші об'єкти.
+        private readonly HashSet<int> _errorWords = new HashSet<int>();
+
         private bool _hasResult;
         private int _wordsPerMinute;
         private int _charsPerMinute;
+        private int _cleanWordsPerMinute;
         private int _boundaryWordNumber;
+        private int _errorCount;
+        private double _errorPercent;
+        private IReadOnlyCollection<int> _errorWordsSnapshot = new int[0];
 
         // Час, за яким порахований підсумок. У режимі B це показ секундоміра,
         // у режимі A — задана тривалість; заповнюється в CaptureResultTime.
@@ -78,6 +87,7 @@ namespace ReadFlow.ViewModels
             ToggleMeasurementCommand = new RelayCommand(ToggleMeasurement);
             ResetMeasurementCommand = new RelayCommand(ResetMeasurement);
             SelectWordCommand = new RelayCommand<object>(OnSelectWord);
+            SetBoundaryCommand = new RelayCommand<object>(OnSetBoundary);
 
             Themes = ThemeManager.AvailableThemes;
 
@@ -104,9 +114,10 @@ namespace ReadFlow.ViewModels
                 }
 
                 // Підсумок стосується конкретного тексту. Змінили текст —
-                // старі WPM більше ні про що не свідчать, а межа читання вказує
-                // на слово, якого в новому тексті може вже й не бути.
+                // старі WPM більше ні про що не свідчать, а межа й позначки
+                // помилок вказують на слова, яких у новому тексті може не бути.
                 BoundaryWordNumber = 0;
+                ClearErrors();
                 HasResult = false;
                 RestartDebounce();
             }
@@ -359,9 +370,61 @@ namespace ReadFlow.ViewModels
         }
 
         /// <summary>
-        /// Клік по слову в режимі читання. Параметр — номер слова.
+        /// Лівий клік по слову. Параметр — номер слова.
+        ///
+        /// Що саме він робить, вирішує ViewModel, а не View: коли відмітка
+        /// помилок увімкнена — позначає помилку, інакше ставить межу читання.
         /// </summary>
         public ICommand SelectWordCommand { get; private set; }
+
+        /// <summary>
+        /// Правий клік по слову — завжди межа читання.
+        ///
+        /// Потрібен саме тому, що в режимі C лівий клік зайнятий помилками:
+        /// вчитель тримає мишу й слухає учня, і друга рука на Ctrl була б зайвою.
+        /// </summary>
+        public ICommand SetBoundaryCommand { get; private set; }
+
+        /// <summary>
+        /// Номери слів, позначених як помилки. Незмінний знімок: щоразу новий
+        /// набір, бо привʼязка не помітила б зміни всередині того самого обʼєкта.
+        /// </summary>
+        public IReadOnlyCollection<int> ErrorWords
+        {
+            get { return _errorWordsSnapshot; }
+            private set { Set(ref _errorWordsSnapshot, value); }
+        }
+
+        /// <summary>
+        /// Кількість помилок у межах прочитаного. Позначки за межею лишаються
+        /// на своїх словах, але в показники не входять: учень туди не дочитав
+        /// (Задача 8, «помилки в межах межі читання»).
+        /// </summary>
+        public int ErrorCount
+        {
+            get { return _errorCount; }
+            private set { Set(ref _errorCount, value); }
+        }
+
+        /// <summary>Відсоток помилок від прочитаних слів, з точністю 0.1.</summary>
+        public double ErrorPercent
+        {
+            get { return _errorPercent; }
+            private set { Set(ref _errorPercent, value); }
+        }
+
+        /// <summary>Чи є що показувати в блоці помилок.</summary>
+        public bool HasErrors
+        {
+            get { return _errorCount > 0; }
+        }
+
+        /// <summary>«Чиста» швидкість: без слів, прочитаних із помилкою.</summary>
+        public int CleanWordsPerMinute
+        {
+            get { return _cleanWordsPerMinute; }
+            private set { Set(ref _cleanWordsPerMinute, value); }
+        }
 
         /// <summary>
         /// Скільки слів вважати прочитаними: до слова-межі включно, а якщо
@@ -462,10 +525,17 @@ namespace ReadFlow.ViewModels
             get { return _markErrors; }
             set
             {
-                if (Set(ref _markErrors, value))
+                if (!Set(ref _markErrors, value))
                 {
-                    SaveSetting(() => Settings.Default.MarkErrors = value);
+                    return;
                 }
+
+                SaveSetting(() => Settings.Default.MarkErrors = value);
+
+                // Вимкнули відмітку — позначки зникають, а не ховаються.
+                // Прихований стан, який мовчки повертається при повторному
+                // вмиканні, — саме те, через що потім не сходяться числа.
+                ClearErrors();
             }
         }
 
@@ -509,8 +579,14 @@ namespace ReadFlow.ViewModels
                 BoundaryWordNumber = 0;
             }
 
+            _errorWords.RemoveWhere(number => number > words.Count);
+
             OnPropertyChanged("WordsRead");
             OnPropertyChanged("CharsRead");
+
+            // Кількість слів могла змінитися — а від неї залежить і скільки
+            // помилок «у грі», і їхній відсоток.
+            PublishErrors();
         }
 
         private void RestartDebounce()
@@ -542,9 +618,10 @@ namespace ReadFlow.ViewModels
 
             _readingTimer.Duration = TimeSpan.FromSeconds(TimerSeconds);
 
-            // Новий замір — з чистого аркуша: межа від попереднього учня
-            // мовчки зрізала б половину тексту.
+            // Новий замір — з чистого аркуша: межа й помилки від попереднього
+            // учня мовчки зрізали б половину тексту й зіпсували «чисту» швидкість.
             BoundaryWordNumber = 0;
+            ClearErrors();
             HasResult = false;
             _readingTimer.Start();
 
@@ -574,6 +651,7 @@ namespace ReadFlow.ViewModels
         {
             _readingTimer.Reset();
             BoundaryWordNumber = 0;
+            ClearErrors();
             HasResult = false;
 
             OnPropertyChanged("IsMeasuring");
@@ -581,26 +659,121 @@ namespace ReadFlow.ViewModels
         }
 
         /// <summary>
-        /// Клік по слову — режим A «клік = стоп».
+        /// Лівий клік: помилка в режимі C, інакше межа читання.
         /// </summary>
         private void OnSelectWord(object parameter)
         {
             int number;
-            if (!TryGetWordNumber(parameter, out number))
+            if (!TryResolveWord(parameter, out number))
             {
                 return;
             }
 
-            // Клік по слову, якого в тексті немає (номер від попереднього тексту),
-            // краще проігнорувати, ніж показати межу поза текстом.
-            if (Document.WordByNumber(number) == null)
+            if (MarkErrors)
+            {
+                ToggleError(number);
+                return;
+            }
+
+            SetBoundary(number);
+        }
+
+        /// <summary>Правий клік: межа читання незалежно від режиму.</summary>
+        private void OnSetBoundary(object parameter)
+        {
+            int number;
+            if (TryResolveWord(parameter, out number))
+            {
+                SetBoundary(number);
+            }
+        }
+
+        /// <summary>
+        /// Позначити слово помилкою або зняти позначку.
+        /// </summary>
+        private void ToggleError(int number)
+        {
+            if (!_errorWords.Remove(number))
+            {
+                _errorWords.Add(number);
+            }
+
+            PublishErrors();
+        }
+
+        private void ClearErrors()
+        {
+            if (_errorWords.Count == 0)
             {
                 return;
             }
 
+            _errorWords.Clear();
+            PublishErrors();
+        }
+
+        /// <summary>
+        /// Перерахувати показники помилок і віддати View новий набір позначок.
+        /// </summary>
+        private void PublishErrors()
+        {
+            var read = WordsRead;
+
+            // Рахуються лише помилки в межах прочитаного. За межею позначка
+            // лишається — перенесли межу далі, і вона знову в грі.
+            var counted = 0;
+            foreach (var number in _errorWords)
+            {
+                if (number <= read)
+                {
+                    counted++;
+                }
+            }
+
+            ErrorCount = counted;
+
+            // Той самий підхід, що й у решті формул (специфікація, 4.4 і 4.7):
+            // ділимо два цілих у decimal і округлюємо «від нуля». У double
+            // серединні значення на кшталт 5/40 = 12.5% залежали б від платформи.
+            ErrorPercent = read == 0 || counted == 0
+                ? 0d
+                : (double)Math.Round(counted * 100m / read, 1, MidpointRounding.AwayFromZero);
+
+            var snapshot = new int[_errorWords.Count];
+            _errorWords.CopyTo(snapshot);
+            ErrorWords = snapshot;
+
+            OnPropertyChanged("HasErrors");
+
+            if (HasResult)
+            {
+                UpdateResult();
+            }
+        }
+
+        /// <summary>
+        /// Номер слова з параметра команди — і перевірка, що таке слово в тексті є.
+        /// Клік по слову з номером від попереднього тексту краще проігнорувати,
+        /// ніж показати позначку поза текстом.
+        /// </summary>
+        private bool TryResolveWord(object parameter, out int number)
+        {
+            return TryGetWordNumber(parameter, out number)
+                   && Document.WordByNumber(number) != null;
+        }
+
+        /// <summary>
+        /// Поставити, перенести або зняти межу читання — режим A «клік = стоп».
+        /// </summary>
+        private void SetBoundary(int number)
+        {
             // Повторний клік по слову-межі знімає її: вчитель може виправити
             // випадковий клік, не шукаючи окремої кнопки.
             BoundaryWordNumber = number == _boundaryWordNumber ? 0 : number;
+
+            // Скільки помилок «у грі», залежить від межі — переставили її,
+            // і показники мусять наздогнати.
+            PublishErrors();
 
             if (MeasurementMode == MeasurementMode.ClickStop)
             {
@@ -644,8 +817,14 @@ namespace ReadFlow.ViewModels
         {
             var seconds = (decimal)_resultElapsed.TotalSeconds;
 
-            WordsPerMinute = SpeedCalculator.WordsPerMinute(WordsRead, seconds);
+            var read = WordsRead;
+
+            WordsPerMinute = SpeedCalculator.WordsPerMinute(read, seconds);
             CharsPerMinute = SpeedCalculator.CharsPerMinute(CharsRead, seconds);
+
+            // «Чиста» швидкість — та сама формула, але слова з помилками
+            // не рахуються прочитаними (специфікація, 4.7).
+            CleanWordsPerMinute = SpeedCalculator.WordsPerMinute(read - ErrorCount, seconds);
         }
 
         /// <summary>
