@@ -54,6 +54,30 @@ namespace ReadFlow
         }
 
         /// <summary>
+        /// Друк тексту великим шрифтом.
+        ///
+        /// Обробник, а не команда у ViewModel: <c>PrintDialog</c> — це діалог,
+        /// і діє те саме міркування, що для вікон. Стан кнопки задає привʼязка
+        /// <c>IsEnabled</c> до <c>HasText</c>, тож логіка «є що друкувати»
+        /// лишається у ViewModel і перевіряється тестом.
+        /// </summary>
+        private void OnPrintClick(object sender, RoutedEventArgs e)
+        {
+            var viewModel = DataContext as MainViewModel;
+
+            if (viewModel == null)
+            {
+                return;
+            }
+
+            TextPrinter.Print(
+                viewModel.Text,
+                Title,
+                viewModel.UseReadingFont,
+                viewModel.ParagraphMode);
+        }
+
+        /// <summary>
         /// Гарячі клавіші: Пробіл — старт і стоп заміру, Esc — скидання.
         ///
         /// Обробляються тут, а не через <c>InputBindings</c>, бо KeyBinding на вікні

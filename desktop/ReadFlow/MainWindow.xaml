@@ -330,12 +330,78 @@
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
 
-                <CheckBox Grid.Row="0"
-                          Content="{StaticResource Str_ReadingMode}"
-                          IsChecked="{Binding IsReadingMode}"
-                          Margin="12,10,12,0"
-                          HorizontalAlignment="Right"
-                          Foreground="{DynamicResource SecondaryForegroundBrush}" />
+                <!-- Смужка дій над текстом: зліва робота з текстом, справа
+                     перемикач режиму читання. -->
+                <DockPanel Grid.Row="0" Margin="12,8,12,0" LastChildFill="False">
+                    <CheckBox DockPanel.Dock="Right"
+                              Content="{StaticResource Str_ReadingMode}"
+                              IsChecked="{Binding IsReadingMode}"
+                              VerticalAlignment="Center"
+                              Margin="12,0,0,0"
+                              Foreground="{DynamicResource SecondaryForegroundBrush}" />
+
+                    <!-- Меню, а не випадний список: це дія, а не вибір значення.
+                         Оформлення бере з Resources/Controls.xaml, як і головне меню. -->
+                    <Menu DockPanel.Dock="Left"
+                          Background="Transparent"
+                          BorderThickness="0"
+                          VerticalAlignment="Center">
+                        <Menu.Style>
+                            <Style TargetType="Menu" BasedOn="{StaticResource {x:Type Menu}}">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding HasSamples}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Menu.Style>
+
+                        <MenuItem Header="{StaticResource Str_InsertSample}"
+                                  ToolTip="{StaticResource Str_InsertSampleHint}"
+                                  ItemsSource="{Binding Samples}">
+                            <MenuItem.ItemContainerStyle>
+                                <!-- Команда лежить у самому пункті: пункти меню
+                                     живуть у Popup, поза візуальним деревом вікна,
+                                     і RelativeSource до ViewModel не дотягнеться. -->
+                                <Style TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
+                                    <Setter Property="Command" Value="{Binding InsertCommand}" />
+                                    <Setter Property="InputGestureText" Value="{Binding TimeText}" />
+                                    <Setter Property="ToolTip" Value="{Binding LevelHint}" />
+                                    <Setter Property="HeaderTemplate">
+                                        <Setter.Value>
+                                            <DataTemplate>
+                                                <StackPanel Margin="0,1">
+                                                    <TextBlock Text="{Binding Title}" />
+                                                    <TextBlock Text="{Binding LevelLabel}"
+                                                               FontSize="11"
+                                                               Foreground="{DynamicResource SecondaryForegroundBrush}" />
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </MenuItem.ItemContainerStyle>
+                        </MenuItem>
+                    </Menu>
+
+                    <Button DockPanel.Dock="Left"
+                            Content="{StaticResource Str_ClearText}"
+                            ToolTip="{StaticResource Str_ClearTextHint}"
+                            Command="{Binding ClearTextCommand}"
+                            Margin="8,0,0,0"
+                            Padding="10,2"
+                            VerticalAlignment="Center" />
+
+                    <Button DockPanel.Dock="Left"
+                            Content="{StaticResource Str_PrintText}"
+                            ToolTip="{StaticResource Str_PrintTextHint}"
+                            Click="OnPrintClick"
+                            IsEnabled="{Binding HasText}"
+                            Margin="8,0,0,0"
+                            Padding="10,2"
+                            VerticalAlignment="Center" />
+                </DockPanel>
 
                 <!-- Режим редагування -->
                 <Grid Grid.Row="1">
