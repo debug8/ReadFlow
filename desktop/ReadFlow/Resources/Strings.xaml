@@ -74,6 +74,17 @@
     <sys:String x:Key="Str_ReadingMode">Режим читання</sys:String>
     <sys:String x:Key="Str_WordNumberFormat">Слово №{0}</sys:String>
 
+    <!-- Панель над текстом (Задача 11). Назви зразків і рівнів сюди не
+         потрапляють: вони в shared/samples/index.json. -->
+    <sys:String x:Key="Str_InsertSample">Вставити зразок</sys:String>
+    <sys:String x:Key="Str_InsertSampleHint">Готові тексти різної складності. Клас у назві рівня — орієнтир, а не обмеження.</sys:String>
+    <sys:String x:Key="Str_SampleTimeFormat">≈ {0} хв</sys:String>
+    <sys:String x:Key="Str_SampleWordsFormat">слів: {0}</sys:String>
+    <sys:String x:Key="Str_ClearText">Очистити</sys:String>
+    <sys:String x:Key="Str_ClearTextHint">Прибрати текст із поля разом із межею читання й позначками помилок.</sys:String>
+    <sys:String x:Key="Str_PrintText">Друк</sys:String>
+    <sys:String x:Key="Str_PrintTextHint">Надрукувати текст великим шрифтом, щоб роздати учням.</sys:String>
+
     <!-- Нижня панель статистики -->
     <sys:String x:Key="Str_StatWords">Слова</sys:String>
     <sys:String x:Key="Str_StatChars">Знаки</sys:String>

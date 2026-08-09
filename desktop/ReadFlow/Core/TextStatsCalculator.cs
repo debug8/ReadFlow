@@ -252,11 +252,40 @@ namespace ReadFlow.Core
             return count;
         }
 
+        /// <summary>
+        /// Розбити текст на абзаци за тим самим правилом, за яким вони рахуються (4.6).
+        ///
+        /// Потрібно для друку: аркуш, розданий учням, має бути поділений так само,
+        /// як показує лічильник абзаців. Окремої логіки розбиття свідомо немає —
+        /// <see cref="CountParagraphs"/> рахує рівно те, що повертає цей метод,
+        /// інакше два правила рано чи пізно розійшлися б.
+        ///
+        /// У режимі «блок між порожніми рядками» рядки одного абзацу зливаються
+        /// через пробіл: там вони — жорсткі переноси всередині абзацу, а не
+        /// окремі абзаци.
+        /// </summary>
+        public static IReadOnlyList<string> GetParagraphs(string text, ParagraphMode mode)
+        {
+            if (string.IsNullOrEmpty(text))
+            {
+                return new string[0];
+            }
+
+            return SplitParagraphs(NormalizeLineEndings(text), mode);
+        }
+
         private static int CountParagraphs(string text, ParagraphMode mode)
         {
-            var count = 0;
+            return SplitParagraphs(text, mode).Count;
+        }
+
+        /// <summary>Спільна робота обох методів вище. Текст уже нормалізований.</summary>
+        private static List<string> SplitParagraphs(string text, ParagraphMode mode)
+        {
+            var result = new List<string>();
+            var line = new StringBuilder();
+            var block = new StringBuilder();
             var lineHasContent = false;
-            var previousLineWasEmpty = true;
 
             for (var i = 0; i <= text.Length; i++)
             {
@@ -269,23 +298,44 @@ namespace ReadFlow.Core
                         lineHasContent = true;
                     }
 
+                    line.Append(text[i]);
                     continue;
                 }
 
                 if (lineHasContent)
                 {
-                    // У режимі блоків новий абзац починається лише після порожнього рядка.
-                    if (mode == ParagraphMode.NonEmptyLines || previousLineWasEmpty)
+                    if (mode == ParagraphMode.NonEmptyLines)
                     {
-                        count++;
+                        result.Add(line.ToString().Trim());
+                    }
+                    else
+                    {
+                        // У режимі блоків новий абзац починається лише після
+                        // порожнього рядка, тож сусідні рядки накопичуються.
+                        if (block.Length > 0)
+                        {
+                            block.Append(' ');
+                        }
+
+                        block.Append(line.ToString().Trim());
                     }
                 }
+                else if (block.Length > 0)
+                {
+                    result.Add(block.ToString());
+                    block.Length = 0;
+                }
 
-                previousLineWasEmpty = !lineHasContent;
+                line.Length = 0;
                 lineHasContent = false;
             }
 
-            return count;
+            if (block.Length > 0)
+            {
+                result.Add(block.ToString());
+            }
+
+            return result;
         }
 
         /// <summary>

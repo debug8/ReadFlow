@@ -26,6 +26,27 @@ namespace ReadFlow.Core
             return PerMinute(charsRead, seconds);
         }
 
+        /// <summary>
+        /// Скільки приблизно хвилин займе текст на заданій швидкості.
+        ///
+        /// Зворотна задача до <see cref="WordsPerMinute"/>: потрібна, щоб біля
+        /// зразка написати «≈ 2 хв» для обраного класу. Округлення — «від нуля»
+        /// на точному дробі, як і скрізь у розділі 4, і не менше однієї хвилини:
+        /// «≈ 0 хв» не сказало б учителю нічого.
+        /// </summary>
+        public static int MinutesToRead(int words, int wordsPerMinute)
+        {
+            if (words <= 0 || wordsPerMinute <= 0)
+            {
+                return 0;
+            }
+
+            var minutes = (int)Math.Round(
+                (decimal)words / wordsPerMinute, 0, MidpointRounding.AwayFromZero);
+
+            return minutes < 1 ? 1 : minutes;
+        }
+
         private static int PerMinute(int amount, decimal seconds)
         {
             if (seconds <= 0m || amount <= 0)

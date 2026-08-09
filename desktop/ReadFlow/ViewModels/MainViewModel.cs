@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
+using System.Windows;
 using System.Windows.Input;
 using System.Windows.Threading;
 using ReadFlow.Core;
@@ -39,6 +40,13 @@ namespace ReadFlow.ViewModels
         /// </summary>
         public const int DefaultSemester = 2;
 
+        // Рядки для підпису зразка. Запасні значення потрібні тестам, де немає
+        // обʼєкта Application, у чиїх ресурсах лежить Strings.xaml.
+        private const string SampleTimeFormatKey = "Str_SampleTimeFormat";
+        private const string DefaultSampleTimeFormat = "≈ {0} хв";
+        private const string SampleWordsFormatKey = "Str_SampleWordsFormat";
+        private const string DefaultSampleWordsFormat = "слів: {0}";
+
         private readonly DispatcherTimer _recalculateTimer;
         private readonly CountingOptions _countingOptions = new CountingOptions();
         private readonly ReadingTimer _readingTimer = new ReadingTimer();
@@ -46,6 +54,12 @@ namespace ReadFlow.ViewModels
         // Довідник норм. І числа, і підписи оцінок у ньому — із shared/norms.json;
         // у коді немає ані того, ані іншого (непорушне правило 2).
         private readonly NormsCatalog _norms = NormsLoader.Current;
+
+        // Реєстр текстів-зразків із shared/samples/. Так само: ані назв, ані
+        // рівнів у коді немає.
+        private readonly SamplesCatalog _samples = SamplesLoader.Current;
+
+        private IList<SampleOption> _sampleOptions;
 
         // Помилки зберігаються за номерами слів, а не за посиланнями на них:
         // при перерахунку статистики слова створюються заново, і позначки
@@ -111,6 +125,7 @@ namespace ReadFlow.ViewModels
             ResetMeasurementCommand = new RelayCommand(ResetMeasurement);
             SelectWordCommand = new RelayCommand<object>(OnSelectWord);
             SetBoundaryCommand = new RelayCommand<object>(OnSetBoundary);
+            ClearTextCommand = new RelayCommand(() => Text = string.Empty, () => HasText);
 
             Themes = ThemeManager.AvailableThemes;
 
@@ -121,6 +136,10 @@ namespace ReadFlow.ViewModels
                              ?? Themes.FirstOrDefault();
 
             LoadSettings();
+
+            // Після LoadSettings: у підписах зразків стоїть час читання для
+            // обраного класу, а він щойно прочитаний із налаштувань.
+            RebuildSampleOptions();
         }
 
         // ── Текст і статистика ────────────────────────────────────────────
@@ -142,9 +161,23 @@ namespace ReadFlow.ViewModels
                 BoundaryWordNumber = 0;
                 ClearErrors();
                 HasResult = false;
+                OnPropertyChanged("HasText");
                 RestartDebounce();
             }
         }
+
+        /// <summary>Чи є що рахувати, чистити й друкувати.</summary>
+        public bool HasText
+        {
+            get { return !string.IsNullOrWhiteSpace(_text); }
+        }
+
+        /// <summary>
+        /// Очистити поле. Без підтвердження: кнопка неактивна на порожньому
+        /// тексті, тож випадково натиснути її можна лише свідомо, а вставити
+        /// текст назад — це Ctrl+V.
+        /// </summary>
+        public ICommand ClearTextCommand { get; private set; }
 
         /// <summary>Статистика тексту. Оновлюється через ~300 мс після зупинки набору.</summary>
         public TextStats Stats
@@ -405,6 +438,9 @@ namespace ReadFlow.ViewModels
                 OnPropertyChanged("Grade");
                 OnPropertyChanged("IsGradeSelected");
                 PublishNorm();
+
+                // У підписах зразків стоїть час читання за нормою цього класу.
+                RebuildSampleOptions();
             }
         }
 
@@ -443,6 +479,7 @@ namespace ReadFlow.ViewModels
                 OnPropertyChanged("IsFirstSemester");
                 OnPropertyChanged("IsSecondSemester");
                 PublishNorm();
+                RebuildSampleOptions();
             }
         }
 
@@ -530,6 +567,123 @@ namespace ReadFlow.ViewModels
         public bool HasNormStatus
         {
             get { return NormStatus != Core.NormEvaluation.Unknown; }
+        }
+
+        // ── Тексти-зразки (Задача 11) ─────────────────────────────────────
+
+        /// <summary>
+        /// Зразки для меню «Вставити зразок». Порядок і рівні — з реєстру
+        /// <c>shared/samples/index.json</c>, у коді їх немає.
+        /// </summary>
+        public IList<SampleOption> Samples
+        {
+            get { return _sampleOptions; }
+            private set { Set(ref _sampleOptions, value); }
+        }
+
+        /// <summary>
+        /// Чи є взагалі зразки. Коли ні — кнопки «Вставити зразок» не видно:
+        /// порожнє меню гірше за його відсутність.
+        /// </summary>
+        public bool HasSamples
+        {
+            get { return !_samples.IsEmpty; }
+        }
+
+        /// <summary>
+        /// Скласти пункти меню наново. Викликається при зміні класу чи семестру:
+        /// у підписі стоїть приблизний час читання, а він залежить від норми.
+        /// Три обʼєкти — дешевше перебудувати, ніж тримати їх спостережуваними.
+        /// </summary>
+        private void RebuildSampleOptions()
+        {
+            var options = new List<SampleOption>();
+
+            foreach (var sample in _samples.Samples)
+            {
+                var level = _samples.FindLevel(sample.LevelId);
+                var current = sample;
+
+                options.Add(new SampleOption(
+                    sample,
+                    level == null ? string.Empty : level.Label,
+                    level == null ? string.Empty : level.Hint,
+                    DescribeSampleLength(sample),
+                    new RelayCommand(() => InsertSample(current))));
+            }
+
+            Samples = options;
+        }
+
+        /// <summary>
+        /// Підпис під назвою зразка: приблизний час читання для обраного класу,
+        /// а без класу — кількість слів.
+        ///
+        /// Час рахується від середини діапазону норми. Показувати «1–2 хв» за
+        /// межами діапазону було б точніше, але вчителю тут потрібен порядок
+        /// величини, а не інтервал.
+        /// </summary>
+        private string DescribeSampleLength(TextSample sample)
+        {
+            var norm = CurrentNorm;
+
+            if (norm != null)
+            {
+                var minutes = SpeedCalculator.MinutesToRead(sample.Words, (norm.Min + norm.Max) / 2);
+
+                if (minutes > 0)
+                {
+                    return string.Format(
+                        CultureInfo.CurrentCulture,
+                        Localized(SampleTimeFormatKey, DefaultSampleTimeFormat),
+                        minutes);
+                }
+            }
+
+            return string.Format(
+                CultureInfo.CurrentCulture,
+                Localized(SampleWordsFormatKey, DefaultSampleWordsFormat),
+                sample.Words);
+        }
+
+        /// <summary>
+        /// Вставити зразок у поле вводу.
+        ///
+        /// Підтвердження немає навмисно: дія явна, а попередній текст учитель
+        /// або вставив із буфера, або взяв із того самого списку.
+        /// </summary>
+        private void InsertSample(TextSample sample)
+        {
+            var body = SamplesLoader.LoadBody(sample);
+
+            if (body == null)
+            {
+                // Реєстр згадує файл, якого немає. Мовчки очистити поле було б
+                // гірше за те, щоб просто нічого не зробити.
+                return;
+            }
+
+            Text = body;
+
+            // Текст змінився не з клавіатури, тож чекати дебаунсу немає сенсу:
+            // статистика має бути на екрані одразу після кліку.
+            RecalculateNow();
+        }
+
+        /// <summary>
+        /// Рядок інтерфейсу з <c>Resources/Strings.xaml</c>. У тестах обʼєкта
+        /// <c>Application</c> немає, тому потрібне запасне значення.
+        /// </summary>
+        private static string Localized(string key, string fallback)
+        {
+            var application = Application.Current;
+
+            if (application == null)
+            {
+                return fallback;
+            }
+
+            return application.TryFindResource(key) as string ?? fallback;
         }
 
         /// <summary>
