@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -45,6 +46,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
 import net.readflow.R
+import net.readflow.core.TextStatsCalculator
 import net.readflow.model.TextSample
 import net.readflow.model.TextStats
 import net.readflow.ui.theme.ReadFlowTheme
@@ -56,6 +58,9 @@ object MainScreenTags {
     const val STATS_ROW = "zone_stats"
     const val CONTROL_PANEL = "zone_controls"
     const val ACTION_ROW = "row_actions"
+    const val READING_TOGGLE = "toggle_reading"
+    const val READING_TEXT = "text_reading"
+    const val WORD_TOOLTIP = "tooltip_word"
 }
 
 @Composable
@@ -73,7 +78,9 @@ fun MainScreen(
         onToggleStats = viewModel::toggleStatsExpanded,
         onChooseSample = viewModel::showSampleSheet,
         onSampleSelected = viewModel::onSampleSelected,
-        onDismissSampleSheet = viewModel::hideSampleSheet
+        onDismissSampleSheet = viewModel::hideSampleSheet,
+        onToggleReadingMode = viewModel::toggleReadingMode,
+        onWordTap = viewModel::onWordTap
     )
 }
 
@@ -93,7 +100,9 @@ fun MainScreenContent(
     onToggleStats: () -> Unit = {},
     onChooseSample: () -> Unit = {},
     onSampleSelected: (TextSample) -> Unit = {},
-    onDismissSampleSheet: () -> Unit = {}
+    onDismissSampleSheet: () -> Unit = {},
+    onToggleReadingMode: () -> Unit = {},
+    onWordTap: (Int) -> Unit = {}
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -105,20 +114,34 @@ fun MainScreenContent(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            TextZone(
-                text = state.text,
-                onTextChange = onTextChange,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .testTag(MainScreenTags.TEXT_ZONE)
-            )
+            val zoneModifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .testTag(MainScreenTags.TEXT_ZONE)
+
+            if (state.isReadingMode) {
+                ReadingView(
+                    text = state.countedText,
+                    words = state.words,
+                    onWordTap = onWordTap,
+                    modifier = zoneModifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                )
+            } else {
+                TextZone(
+                    text = state.text,
+                    onTextChange = onTextChange,
+                    modifier = zoneModifier
+                )
+            }
 
             ActionRow(
                 showClear = !state.isEmpty,
+                showReadingToggle = !state.isEmpty,
+                isReadingMode = state.isReadingMode,
                 onPaste = onPaste,
                 onChooseSample = onChooseSample,
                 onClear = onClear,
+                onToggleReadingMode = onToggleReadingMode,
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag(MainScreenTags.ACTION_ROW)
@@ -177,9 +200,12 @@ private fun TextZone(
 @Composable
 private fun ActionRow(
     showClear: Boolean,
+    showReadingToggle: Boolean,
+    isReadingMode: Boolean,
     onPaste: () -> Unit,
     onChooseSample: () -> Unit,
     onClear: () -> Unit,
+    onToggleReadingMode: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -187,22 +213,36 @@ private fun ActionRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        FilledTonalButton(
-            onClick = onPaste,
-            modifier = Modifier
-                .weight(1f)
-                .heightIn(min = 48.dp)
-        ) {
-            Text(stringResource(R.string.action_paste))
+        // У режимі читання вставляти нема куди: спершу вихід із нього.
+        if (!isReadingMode) {
+            FilledTonalButton(
+                onClick = onPaste,
+                modifier = Modifier
+                    .weight(1f)
+                    .heightIn(min = 48.dp)
+            ) {
+                Text(stringResource(R.string.action_paste))
+            }
+
+            FilledTonalButton(
+                onClick = onChooseSample,
+                modifier = Modifier
+                    .weight(1f)
+                    .heightIn(min = 48.dp)
+            ) {
+                Text(stringResource(R.string.action_choose_sample))
+            }
         }
 
-        FilledTonalButton(
-            onClick = onChooseSample,
-            modifier = Modifier
-                .weight(1f)
-                .heightIn(min = 48.dp)
-        ) {
-            Text(stringResource(R.string.action_choose_sample))
+        if (showReadingToggle) {
+            FilterChip(
+                selected = isReadingMode,
+                onClick = onToggleReadingMode,
+                label = { Text(stringResource(R.string.action_reading_mode)) },
+                modifier = Modifier
+                    .heightIn(min = 48.dp)
+                    .testTag(MainScreenTags.READING_TOGGLE)
+            )
         }
 
         if (showClear) {
@@ -418,6 +458,24 @@ private fun readClipboardText(context: Context): String? {
 private fun MainScreenPreviewEmpty() {
     ReadFlowTheme(darkTheme = false) {
         MainScreenContent(state = UiState())
+    }
+}
+
+@Preview(showBackground = true, name = "Режим читання")
+@Composable
+private fun MainScreenPreviewReading() {
+    val text = "Мама мила раму. Комп'ютер працює, синьо-жовтий прапор майорить."
+
+    ReadFlowTheme(darkTheme = false) {
+        MainScreenContent(
+            state = UiState(
+                text = text,
+                countedText = text,
+                words = TextStatsCalculator.getWords(text),
+                stats = TextStatsCalculator.calculate(text),
+                isReadingMode = true
+            )
+        )
     }
 }
 

@@ -7,6 +7,9 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.longClick
+import net.readflow.core.TextStatsCalculator
 import net.readflow.model.TextSample
 import net.readflow.model.TextStats
 import net.readflow.ui.MainScreenContent
@@ -47,7 +50,9 @@ class MainScreenTest {
         onTextChange: (String) -> Unit = {},
         onClear: () -> Unit = {},
         onToggleStats: () -> Unit = {},
-        onChooseSample: () -> Unit = {}
+        onChooseSample: () -> Unit = {},
+        onToggleReadingMode: () -> Unit = {},
+        onWordTap: (Int) -> Unit = {}
     ) {
         composeRule.setContent {
             ReadFlowTheme {
@@ -56,11 +61,21 @@ class MainScreenTest {
                     onTextChange = onTextChange,
                     onClear = onClear,
                     onToggleStats = onToggleStats,
-                    onChooseSample = onChooseSample
+                    onChooseSample = onChooseSample,
+                    onToggleReadingMode = onToggleReadingMode,
+                    onWordTap = onWordTap
                 )
             }
         }
     }
+
+    /** Стан із уже розібраним текстом — таким його бачить екран після дебаунсу. */
+    private fun readingState(text: String, isReadingMode: Boolean = true) = UiState(
+        text = text,
+        countedText = text,
+        words = TextStatsCalculator.getWords(text),
+        isReadingMode = isReadingMode
+    )
 
     /** На екрані видно всі три зони й рядок кнопок. */
     @Test
@@ -166,6 +181,70 @@ class MainScreenTest {
         composeRule.onNodeWithText("Обрати зразок").performClick()
 
         assertEquals(true, asked)
+    }
+
+    /** Перемикача «Читання» немає, доки немає тексту. */
+    @Test
+    fun `reading toggle is hidden on the empty screen`() {
+        setScreen()
+
+        composeRule.onNodeWithTag(MainScreenTags.READING_TOGGLE).assertDoesNotExist()
+    }
+
+    /** З'явився текст — з'явився й перемикач. */
+    @Test
+    fun `reading toggle appears when there is text`() {
+        setScreen(state = readingState("Мама мила раму.", isReadingMode = false))
+
+        composeRule.onNodeWithTag(MainScreenTags.READING_TOGGLE).assertIsDisplayed()
+    }
+
+    /** Тап по перемикачу просить змінити режим. */
+    @Test
+    fun `reading toggle asks to switch the mode`() {
+        var asked = false
+        setScreen(
+            state = readingState("Мама мила раму.", isReadingMode = false),
+            onToggleReadingMode = { asked = true }
+        )
+
+        composeRule.onNodeWithTag(MainScreenTags.READING_TOGGLE).performClick()
+
+        assertEquals(true, asked)
+    }
+
+    /** У режимі читання поле вводу замінене текстом, а кнопок вставки немає. */
+    @Test
+    fun `reading mode replaces the input field`() {
+        setScreen(state = readingState("Мама мила раму."))
+
+        composeRule.onNodeWithTag(MainScreenTags.READING_TEXT).assertIsDisplayed()
+        composeRule.onNodeWithText("Мама мила раму.").assertIsDisplayed()
+        composeRule.onNodeWithText("Вставити").assertDoesNotExist()
+        composeRule.onNodeWithText("Обрати зразок").assertDoesNotExist()
+    }
+
+    /** Короткий тап по слову віддає його номер назовні. */
+    @Test
+    fun `short tap on a word passes its number out`() {
+        var tapped: Int? = null
+        setScreen(state = readingState("Мама"), onWordTap = { tapped = it })
+
+        composeRule.onNodeWithTag(MainScreenTags.READING_TEXT).performClick()
+
+        assertEquals(1, tapped)
+    }
+
+    /** Довгий тап показує «Слово №N», а короткий — ні. */
+    @Test
+    fun `long tap shows the word number`() {
+        setScreen(state = readingState("Мама"))
+
+        composeRule.onNodeWithTag(MainScreenTags.WORD_TOOLTIP).assertDoesNotExist()
+
+        composeRule.onNodeWithTag(MainScreenTags.READING_TEXT).performTouchInput { longClick() }
+
+        composeRule.onNodeWithText("Слово №1").assertIsDisplayed()
     }
 
     /** Аркуш зразків групує тексти за класами й показує кількість слів. */

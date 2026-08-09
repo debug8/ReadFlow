@@ -23,6 +23,8 @@ import net.readflow.core.TextStatsCalculator
 import net.readflow.data.AssetSampleRepository
 import net.readflow.data.SampleRepository
 import net.readflow.model.TextSample
+import net.readflow.model.TextStats
+import net.readflow.model.WordToken
 
 /**
  * Єдина ViewModel застосунку.
@@ -52,11 +54,29 @@ class MainViewModel(
                 .mapLatest { text ->
                     // Підрахунок на 3000 слів не має чіплятися до головного потоку.
                     withContext(computeDispatcher) {
-                        TextStatsCalculator.calculate(text, CountingOptions.Default)
+                        // Розбір на слова робиться один раз: він однаково потрібен
+                        // і статистиці, і режиму читання.
+                        val words = TextStatsCalculator.getWords(text)
+
+                        Counted(
+                            text = text,
+                            words = words,
+                            stats = TextStatsCalculator.calculate(
+                                text,
+                                words,
+                                CountingOptions.Default
+                            )
+                        )
                     }
                 }
-                .collect { stats ->
-                    _uiState.update { it.copy(stats = stats) }
+                .collect { counted ->
+                    _uiState.update {
+                        it.copy(
+                            countedText = counted.text,
+                            words = counted.words,
+                            stats = counted.stats
+                        )
+                    }
                 }
         }
 
@@ -68,8 +88,33 @@ class MainViewModel(
 
     /** Користувач змінив текст у полі вводу або вставив його з буфера. */
     fun onTextChange(text: String) {
-        _uiState.update { current -> current.copy(text = text) }
+        _uiState.update { current ->
+            current.copy(
+                text = text,
+                // Номер слова належав попередньому текстові — після правки він бреше.
+                tappedWordNumber = null,
+                // Порожній текст нічого читати: режим читання сам вимикається,
+                // інакше екран лишився б із порожньою зоною й без поля вводу.
+                isReadingMode = current.isReadingMode && text.isNotEmpty()
+            )
+        }
+
         textInput.value = text
+    }
+
+    /** Перемикач «Читання» над текстом. На порожньому тексті нічого не робить. */
+    fun toggleReadingMode() {
+        _uiState.update { current ->
+            if (current.isEmpty) current else current.copy(isReadingMode = !current.isReadingMode)
+        }
+    }
+
+    /**
+     * Тап по слову в режимі читання. [number] — порядковий номер слова від 1.
+     * Задача 6 зробить із нього межу читання (режим A) або позначку помилки (режим C).
+     */
+    fun onWordTap(number: Int) {
+        _uiState.update { current -> current.copy(tappedWordNumber = number) }
     }
 
     /** Кнопка «Очистити». */
@@ -101,6 +146,13 @@ class MainViewModel(
             }
         }
     }
+
+    /** Результат одного проходу розбору: текст і все, що з нього порахували. */
+    private data class Counted(
+        val text: String,
+        val words: List<WordToken>,
+        val stats: TextStats
+    )
 
     companion object {
 

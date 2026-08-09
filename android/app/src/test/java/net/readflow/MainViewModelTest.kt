@@ -191,6 +191,125 @@ class MainViewModelTest {
         assertFalse(vm.uiState.value.isStatsExpanded)
     }
 
+    /** Слова з їхніми межами приходять разом зі статистикою, з того самого розбору. */
+    @Test
+    fun `words arrive together with the stats`() = runTest(dispatcher) {
+        val vm = viewModel()
+
+        vm.onTextChange("Мама мила раму.")
+        advanceUntilIdle()
+
+        val state = vm.uiState.value
+        assertEquals(3, state.words.size)
+        assertEquals(state.stats.wordCount, state.words.size)
+        assertEquals("Мама", state.words[0].text)
+        assertEquals(1, state.words[0].number)
+        assertEquals(10, state.words[2].start)
+    }
+
+    /**
+     * Текст, до якого належать слова, зберігається окремо. Поле вводу вже
+     * змінилося, а межі слів ще від старого рядка — режим читання мусить
+     * малювати саме той рядок, з якого ці межі порахували.
+     */
+    @Test
+    fun `counted text lags behind the input and stays consistent with the words`() =
+        runTest(dispatcher) {
+            val vm = viewModel()
+
+            vm.onTextChange("мама")
+            advanceUntilIdle()
+            assertEquals("мама", vm.uiState.value.countedText)
+
+            vm.onTextChange("мама мила раму")
+            assertEquals("мама мила раму", vm.uiState.value.text)
+            assertEquals("Слова ще від попереднього тексту.", "мама", vm.uiState.value.countedText)
+            assertEquals(1, vm.uiState.value.words.size)
+
+            advanceUntilIdle()
+            assertEquals("мама мила раму", vm.uiState.value.countedText)
+            assertEquals(3, vm.uiState.value.words.size)
+        }
+
+    /** Перемикач «Читання» вмикає й вимикає режим. */
+    @Test
+    fun `reading mode toggles`() = runTest(dispatcher) {
+        val vm = viewModel()
+        vm.onTextChange("мама мила раму")
+        advanceUntilIdle()
+
+        assertFalse(vm.uiState.value.isReadingMode)
+        vm.toggleReadingMode()
+        assertTrue(vm.uiState.value.isReadingMode)
+        vm.toggleReadingMode()
+        assertFalse(vm.uiState.value.isReadingMode)
+    }
+
+    /** На порожньому тексті читати нічого — режим не вмикається. */
+    @Test
+    fun `reading mode does not turn on for empty text`() = runTest(dispatcher) {
+        val vm = viewModel()
+
+        vm.toggleReadingMode()
+
+        assertFalse(vm.uiState.value.isReadingMode)
+    }
+
+    /** «Очистити» в режимі читання повертає до поля вводу, а не лишає порожню зону. */
+    @Test
+    fun `clearing the text leaves the reading mode`() = runTest(dispatcher) {
+        val vm = viewModel()
+        vm.onTextChange("мама мила раму")
+        vm.toggleReadingMode()
+        advanceUntilIdle()
+        assertTrue(vm.uiState.value.isReadingMode)
+
+        vm.clearText()
+        advanceUntilIdle()
+
+        assertFalse(vm.uiState.value.isReadingMode)
+    }
+
+    /** Правка тексту режим читання не вимикає — лише його спорожнення. */
+    @Test
+    fun `editing the text keeps the reading mode`() = runTest(dispatcher) {
+        val vm = viewModel()
+        vm.onTextChange("мама")
+        vm.toggleReadingMode()
+        advanceUntilIdle()
+
+        vm.onTextChange("мама мила")
+        advanceUntilIdle()
+
+        assertTrue(vm.uiState.value.isReadingMode)
+    }
+
+    /** Тап по слову доходить до ViewModel разом із номером. */
+    @Test
+    fun `word tap reaches the view model`() = runTest(dispatcher) {
+        val vm = viewModel()
+        vm.onTextChange("мама мила раму")
+        advanceUntilIdle()
+
+        vm.onWordTap(2)
+
+        assertEquals(2, vm.uiState.value.tappedWordNumber)
+    }
+
+    /** Після правки тексту старий номер слова скидається: він указував би не туди. */
+    @Test
+    fun `word tap is forgotten when the text changes`() = runTest(dispatcher) {
+        val vm = viewModel()
+        vm.onTextChange("мама мила раму")
+        advanceUntilIdle()
+        vm.onWordTap(3)
+
+        vm.onTextChange("мама мила раму знову")
+        advanceUntilIdle()
+
+        assertEquals(null, vm.uiState.value.tappedWordNumber)
+    }
+
     /** Стан незмінний: кожна зміна дає новий об'єкт, а не править старий. */
     @Test
     fun `state is immutable - every change creates a new object`() = runTest(dispatcher) {
