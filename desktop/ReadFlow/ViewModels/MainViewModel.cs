@@ -68,6 +68,8 @@ namespace ReadFlow.ViewModels
         private MeasurementMode _measurementMode;
         private bool _markErrors;
         private bool _isSettingsExpanded;
+        private bool _showLineHighlight;
+        private bool _useReadingFont;
 
         public MainViewModel()
         {
@@ -233,6 +235,43 @@ namespace ReadFlow.ViewModels
                 SaveSetting(() => Settings.Default.LineHeight = clamped);
                 OnPropertyChanged();
                 OnPropertyChanged("UsesThemeSizes");
+            }
+        }
+
+        /// <summary>
+        /// Гарнітура, зручніша для читання (Задача 9).
+        ///
+        /// Окремо від повзунків розміру: розмір і гарнітура — різні речі, і вчитель
+        /// може захотіти велику звичайну або дрібну широку. Тому перемикач не чіпає
+        /// ані розміру, ані інтервалу.
+        /// </summary>
+        public bool UseReadingFont
+        {
+            get { return _useReadingFont; }
+            set
+            {
+                if (!Set(ref _useReadingFont, value))
+                {
+                    return;
+                }
+
+                TextAppearance.ApplyReadingFont(value);
+                SaveSetting(() => Settings.Default.ReadingFont = value);
+            }
+        }
+
+        /// <summary>
+        /// Підсвічувати рядок під курсором у режимі читання (Задача 9).
+        /// </summary>
+        public bool ShowLineHighlight
+        {
+            get { return _showLineHighlight; }
+            set
+            {
+                if (Set(ref _showLineHighlight, value))
+                {
+                    SaveSetting(() => Settings.Default.LineHighlight = value);
+                }
             }
         }
 
@@ -882,6 +921,8 @@ namespace ReadFlow.ViewModels
                 _timerSeconds = settings.TimerSeconds;
                 _markErrors = settings.MarkErrors;
                 _isSettingsExpanded = settings.SettingsExpanded;
+                _showLineHighlight = settings.LineHighlight;
+                _useReadingFont = settings.ReadingFont;
                 _measurementMode = Enum.IsDefined(typeof(MeasurementMode), settings.MeasurementMode)
                     ? (MeasurementMode)settings.MeasurementMode
                     : MeasurementMode.Timer;
@@ -907,6 +948,7 @@ namespace ReadFlow.ViewModels
             // нічого не змінюється й діють значення теми.
             TextAppearance.ApplyFontSize(_fontSizeOverride);
             TextAppearance.ApplyLineHeight(_lineHeightOverride);
+            TextAppearance.ApplyReadingFont(_useReadingFont);
         }
 
         private void OnUseThemeSizes()

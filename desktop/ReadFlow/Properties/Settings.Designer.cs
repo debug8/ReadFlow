@@ -148,5 +148,37 @@ namespace ReadFlow.Properties
                 this["SettingsExpanded"] = value;
             }
         }
+
+        /// <summary>Підсвічувати рядок під курсором у режимі читання.</summary>
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool LineHighlight
+        {
+            get
+            {
+                return ((bool)(this["LineHighlight"]));
+            }
+            set
+            {
+                this["LineHighlight"] = value;
+            }
+        }
+
+        /// <summary>Шрифт, зручніший для читання, замість типового.</summary>
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool ReadingFont
+        {
+            get
+            {
+                return ((bool)(this["ReadingFont"]));
+            }
+            set
+            {
+                this["ReadingFont"] = value;
+            }
+        }
     }
 }

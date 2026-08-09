@@ -5,6 +5,8 @@ using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Shapes;
+using ReadFlow.Core;
 using ReadFlow.Models;
 
 namespace ReadFlow.Views
@@ -30,6 +32,10 @@ namespace ReadFlow.Views
         private const string BoundaryBrushKey = "WordBoundaryBrush";
         private const string HoverBrushKey = "WordHoverBrush";
         private const string ErrorBrushKey = "WordErrorBrush";
+        private const string LineHighlightBrushKey = "LineHighlightBrush";
+
+        /// <summary>Відступ тексту від краю. Від нього рахується позиція першого рядка.</summary>
+        private const double TextPadding = 12d;
 
         public static readonly DependencyProperty DocumentProperty = DependencyProperty.Register(
             "Document",
@@ -49,6 +55,12 @@ namespace ReadFlow.Views
             typeof(WordReaderView),
             new PropertyMetadata(null, OnErrorWordsChanged));
 
+        public static readonly DependencyProperty ShowLineHighlightProperty = DependencyProperty.Register(
+            "ShowLineHighlight",
+            typeof(bool),
+            typeof(WordReaderView),
+            new PropertyMetadata(false, OnShowLineHighlightChanged));
+
         public static readonly DependencyProperty WordCommandProperty = DependencyProperty.Register(
             "WordCommand",
             typeof(ICommand),
@@ -62,6 +74,7 @@ namespace ReadFlow.Views
             new PropertyMetadata(null));
 
         private readonly TextBlock _textBlock;
+        private readonly Rectangle _lineHighlight;
 
         // Runʼи слів за номером (номер − 1). Потрібні, щоб змінити тло одного слова,
         // не перебираючи тисячі інлайнів: підсвітка межі має бути миттєвою.
@@ -93,17 +106,34 @@ namespace ReadFlow.Views
             _textBlock.SetResourceReference(TextBlock.ForegroundProperty, "TextForegroundBrush");
             _textBlock.SetResourceReference(TextBlock.FontSizeProperty, "BaseFontSize");
             _textBlock.SetResourceReference(TextBlock.LineHeightProperty, "TextLineHeight");
+            _textBlock.SetResourceReference(TextBlock.FontFamilyProperty, TextAppearance.FontFamilyKey);
 
             _textBlock.MouseLeftButtonDown += OnTextMouseLeftButtonDown;
             _textBlock.MouseRightButtonDown += OnTextMouseRightButtonDown;
             _textBlock.MouseMove += OnTextMouseMove;
             _textBlock.MouseLeave += OnTextMouseLeave;
 
+            // Смуга підсвітки рядка лежить ПІД текстом в одній клітинці Grid.
+            // Окремим шаром, а не тлом Runʼів: рядок — поняття розкладки, а не
+            // розмітки, і слова в ньому належать різним Runʼам.
+            _lineHighlight = new Rectangle
+            {
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                VerticalAlignment = VerticalAlignment.Top,
+                Visibility = Visibility.Collapsed,
+                IsHitTestVisible = false
+            };
+            _lineHighlight.SetResourceReference(Shape.FillProperty, LineHighlightBrushKey);
+
+            var layers = new Grid();
+            layers.Children.Add(_lineHighlight);
+            layers.Children.Add(_textBlock);
+
             Content = new ScrollViewer
             {
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
                 HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
-                Content = _textBlock
+                Content = layers
             };
 
             IsVisibleChanged += OnIsVisibleChanged;
@@ -128,6 +158,13 @@ namespace ReadFlow.Views
         {
             get { return (IReadOnlyCollection<int>)GetValue(ErrorWordsProperty); }
             set { SetValue(ErrorWordsProperty, value); }
+        }
+
+        /// <summary>Підсвічувати рядок, над яким курсор.</summary>
+        public bool ShowLineHighlight
+        {
+            get { return (bool)GetValue(ShowLineHighlightProperty); }
+            set { SetValue(ShowLineHighlightProperty, value); }
         }
 
         /// <summary>Команда лівого кліку по слову. Параметр — номер слова.</summary>
@@ -156,6 +193,14 @@ namespace ReadFlow.Views
             // Перемальовуємо рівно два слова: те, що перестало бути межею, і нове.
             view.ApplyWordBrush((int)e.OldValue);
             view.ApplyWordBrush((int)e.NewValue);
+        }
+
+        private static void OnShowLineHighlightChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            if (!(bool)e.NewValue)
+            {
+                ((WordReaderView)d)._lineHighlight.Visibility = Visibility.Collapsed;
+            }
         }
 
         private static void OnErrorWordsChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
@@ -215,6 +260,10 @@ namespace ReadFlow.Views
             _wordRuns = new Run[0];
             _hoveredWordNumber = 0;
             _textBlock.Cursor = null;
+
+            // Смуга вказувала на рядок попереднього тексту — після перебудови
+            // під нею вже інші слова.
+            _lineHighlight.Visibility = Visibility.Collapsed;
 
             var document = Document;
             if (document == null)
@@ -295,11 +344,44 @@ namespace ReadFlow.Views
         private void OnTextMouseMove(object sender, MouseEventArgs e)
         {
             SetHoveredWord(WordNumberAt(e.OriginalSource));
+            MoveLineHighlight(e.GetPosition(_textBlock).Y);
         }
 
         private void OnTextMouseLeave(object sender, MouseEventArgs e)
         {
             SetHoveredWord(0);
+            _lineHighlight.Visibility = Visibility.Collapsed;
+        }
+
+        /// <summary>
+        /// Посунути смугу під рядок, над яким курсор.
+        ///
+        /// Рядок обчислюється арифметикою, а не пошуком по розкладці, і це надійно
+        /// саме тут: <c>TextBlock</c> налаштований на <c>BlockLineHeight</c> із явним
+        /// <c>LineHeight</c>, тобто всі рядки рівно однакової висоти. Без цього
+        /// довелося б ходити по <c>TextPointer</c> на кожен рух миші.
+        /// </summary>
+        private void MoveLineHighlight(double y)
+        {
+            if (!ShowLineHighlight)
+            {
+                return;
+            }
+
+            var lineHeight = _textBlock.LineHeight;
+            var offset = y - TextPadding;
+
+            if (double.IsNaN(lineHeight) || lineHeight <= 0 || offset < 0)
+            {
+                _lineHighlight.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            var line = (int)(offset / lineHeight);
+
+            _lineHighlight.Height = lineHeight;
+            _lineHighlight.Margin = new Thickness(0, TextPadding + line * lineHeight, 0, 0);
+            _lineHighlight.Visibility = Visibility.Visible;
         }
 
         private void SetHoveredWord(int number)

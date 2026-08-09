@@ -36,6 +36,7 @@ namespace ReadFlow.Tests
             "WordHoverBrush",
             "WordBoundaryBrush",
             "WordErrorBrush",
+            "LineHighlightBrush",
             "NormBelowBrush",
             "NormWithinBrush",
             "NormAboveBrush",

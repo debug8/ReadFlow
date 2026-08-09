@@ -24,6 +24,11 @@
     <SolidColorBrush x:Key="WordBoundaryBrush" Color="#FF005C99" />
     <SolidColorBrush x:Key="WordErrorBrush" Color="#FFB00000" />
 
+    <!-- Підсвітка рядка під курсором у режимі читання (Задача 9).
+         Помітно блідіша за WordHoverBrush: смуга на всю ширину тим самим
+         кольором сховала б слово під курсором. -->
+    <SolidColorBrush x:Key="LineHighlightBrush" Color="#FF1A1A1A" />
+
     <!-- Оцінка результату відносно норми -->
     <SolidColorBrush x:Key="NormBelowBrush" Color="#FFFF6B6B" />
     <SolidColorBrush x:Key="NormWithinBrush" Color="#FF00FF00" />

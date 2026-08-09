@@ -31,6 +31,11 @@
     <sys:String x:Key="Str_LineHeightLabel">Міжрядковий інтервал</sys:String>
     <sys:String x:Key="Str_UseThemeSizes">Як у темі</sys:String>
 
+    <sys:String x:Key="Str_ReadingFont">Шрифт, зручний для читання</sys:String>
+    <sys:String x:Key="Str_ReadingFontHint">Ширші літери й більші проміжки між ними. Розмір і міжрядковий інтервал лишаються за повзунками вище.</sys:String>
+    <sys:String x:Key="Str_LineHighlight">Підсвічувати рядок</sys:String>
+    <sys:String x:Key="Str_LineHighlightHint">У режимі читання підсвічує рядок, над яким курсор, — щоб не губити місце.</sys:String>
+
     <sys:String x:Key="Str_ParagraphModeLabel">Абзаци рахувати як</sys:String>
     <sys:String x:Key="Str_ParagraphModeLines">Кожен непорожній рядок</sys:String>
     <sys:String x:Key="Str_ParagraphModeBlocks">Блок між порожніми рядками</sys:String>

@@ -201,6 +201,18 @@
                                 HorizontalAlignment="Left"
                                 Padding="10,2" />
 
+                        <!-- Зручність читання (Задача 9). Обидва — допоміжні,
+                             тому за замовчуванням вимкнені. -->
+                        <CheckBox Content="{StaticResource Str_ReadingFont}"
+                                  IsChecked="{Binding UseReadingFont}"
+                                  ToolTip="{StaticResource Str_ReadingFontHint}"
+                                  Margin="0,12,0,0"
+                                  Style="{StaticResource SettingCheckStyle}" />
+                        <CheckBox Content="{StaticResource Str_LineHighlight}"
+                                  IsChecked="{Binding ShowLineHighlight}"
+                                  ToolTip="{StaticResource Str_LineHighlightHint}"
+                                  Style="{StaticResource SettingCheckStyle}" />
+
                         <!-- Тривалість заміру -->
                         <TextBlock Text="{StaticResource Str_TimerLabel}"
                                    Style="{StaticResource SettingLabelStyle}" />
@@ -291,7 +303,8 @@
                              Foreground="{DynamicResource TextForegroundBrush}"
                              CaretBrush="{DynamicResource TextForegroundBrush}"
                              SelectionBrush="{DynamicResource AccentBrush}"
-                             FontSize="{DynamicResource BaseFontSize}" />
+                             FontSize="{DynamicResource BaseFontSize}"
+                             FontFamily="{DynamicResource TextFontFamily}" />
 
                     <!-- Підказка поверх порожнього поля. IsHitTestVisible=False — щоб не
                          перехоплювала клік і курсор ставився в поле. -->
@@ -320,6 +333,7 @@
                                       Document="{Binding Document}"
                                       BoundaryWordNumber="{Binding BoundaryWordNumber, Mode=OneWay}"
                                       ErrorWords="{Binding ErrorWords, Mode=OneWay}"
+                                      ShowLineHighlight="{Binding ShowLineHighlight, Mode=OneWay}"
                                       WordCommand="{Binding SelectWordCommand}"
                                       WordAlternateCommand="{Binding SetBoundaryCommand}">
                     <views:WordReaderView.Style>
