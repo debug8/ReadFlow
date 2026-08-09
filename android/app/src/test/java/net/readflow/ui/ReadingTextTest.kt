@@ -18,6 +18,7 @@ import org.junit.Test
 class ReadingTextTest {
 
     private val styles = WordStyles(
+        highlight = SpanStyle(background = Color(0xFFB8F0D8)),
         boundary = SpanStyle(color = Color(0xFF1B5E4B)),
         error = SpanStyle(background = Color(0xFFFFDAD6))
     )
@@ -97,6 +98,21 @@ class ReadingTextTest {
             "синьо-жовтий",
             text.substring(built.spanStyles[1].start, built.spanStyles[1].end)
         )
+    }
+
+    /** Підсвітка слова під підказкою — окремий стиль, не той, що межа чи помилка. */
+    @Test
+    fun `highlight uses its own style`() {
+        val text = "один два три"
+        val tokens = words(text)
+
+        val built = buildReadingText(text, tokens, styles) { word ->
+            if (word.number == 2) WordMark.HIGHLIGHT else WordMark.NONE
+        }
+
+        assertEquals(1, built.spanStyles.size)
+        assertEquals(styles.highlight, built.spanStyles[0].item)
+        assertEquals("два", text.substring(built.spanStyles[0].start, built.spanStyles[0].end))
     }
 
     /** Порожній текст нічого не ламає. */

@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
@@ -59,6 +60,8 @@ object MainScreenTags {
     const val CONTROL_PANEL = "zone_controls"
     const val ACTION_ROW = "row_actions"
     const val READING_TOGGLE = "toggle_reading"
+    const val CLEAR_BUTTON = "button_clear"
+    const val CLEAR_CONFIRM = "button_clear_confirm"
     const val READING_TEXT = "text_reading"
     const val WORD_TOOLTIP = "tooltip_word"
 }
@@ -80,7 +83,9 @@ fun MainScreen(
         onSampleSelected = viewModel::onSampleSelected,
         onDismissSampleSheet = viewModel::hideSampleSheet,
         onToggleReadingMode = viewModel::toggleReadingMode,
-        onWordTap = viewModel::onWordTap
+        onWordTap = viewModel::onWordTap,
+        onRequestClear = viewModel::requestClear,
+        onCancelClear = viewModel::cancelClear
     )
 }
 
@@ -102,7 +107,9 @@ fun MainScreenContent(
     onSampleSelected: (TextSample) -> Unit = {},
     onDismissSampleSheet: () -> Unit = {},
     onToggleReadingMode: () -> Unit = {},
-    onWordTap: (Int) -> Unit = {}
+    onWordTap: (Int) -> Unit = {},
+    onRequestClear: () -> Unit = {},
+    onCancelClear: () -> Unit = {}
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -135,12 +142,11 @@ fun MainScreenContent(
             }
 
             ActionRow(
-                showClear = !state.isEmpty,
-                showReadingToggle = !state.isEmpty,
+                showSecondary = !state.isEmpty,
                 isReadingMode = state.isReadingMode,
                 onPaste = onPaste,
                 onChooseSample = onChooseSample,
-                onClear = onClear,
+                onRequestClear = onRequestClear,
                 onToggleReadingMode = onToggleReadingMode,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -174,6 +180,10 @@ fun MainScreenContent(
                 onDismiss = onDismissSampleSheet
             )
         }
+
+        if (state.isClearConfirmVisible) {
+            ClearConfirmDialog(onConfirm = onClear, onDismiss = onCancelClear)
+        }
     }
 }
 
@@ -199,61 +209,101 @@ private fun TextZone(
  */
 @Composable
 private fun ActionRow(
-    showClear: Boolean,
-    showReadingToggle: Boolean,
+    showSecondary: Boolean,
     isReadingMode: Boolean,
     onPaste: () -> Unit,
     onChooseSample: () -> Unit,
-    onClear: () -> Unit,
+    onRequestClear: () -> Unit,
     onToggleReadingMode: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Row(
+    Column(
         modifier = modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        // У режимі читання вставляти нема куди: спершу вихід із нього.
+        // Два ряди, а не один: на телефоні 360 dp чотири елементи в рядок
+        // стискали «Вставити» й «Обрати зразок» до однієї літери на рядок —
+        // підпис ставав вертикальним. Другий ряд з'являється лише разом
+        // із текстом, тож стан за замовчуванням лишається двома кнопками.
         if (!isReadingMode) {
-            FilledTonalButton(
-                onClick = onPaste,
-                modifier = Modifier
-                    .weight(1f)
-                    .heightIn(min = 48.dp)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(stringResource(R.string.action_paste))
-            }
+                FilledTonalButton(
+                    onClick = onPaste,
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = 48.dp)
+                ) {
+                    Text(text = stringResource(R.string.action_paste), maxLines = 1)
+                }
 
-            FilledTonalButton(
-                onClick = onChooseSample,
-                modifier = Modifier
-                    .weight(1f)
-                    .heightIn(min = 48.dp)
-            ) {
-                Text(stringResource(R.string.action_choose_sample))
+                FilledTonalButton(
+                    onClick = onChooseSample,
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = 48.dp)
+                ) {
+                    Text(text = stringResource(R.string.action_choose_sample), maxLines = 1)
+                }
             }
         }
 
-        if (showReadingToggle) {
-            FilterChip(
-                selected = isReadingMode,
-                onClick = onToggleReadingMode,
-                label = { Text(stringResource(R.string.action_reading_mode)) },
-                modifier = Modifier
-                    .heightIn(min = 48.dp)
-                    .testTag(MainScreenTags.READING_TOGGLE)
-            )
-        }
-
-        if (showClear) {
-            TextButton(
-                onClick = onClear,
-                modifier = Modifier.heightIn(min = 48.dp)
+        if (showSecondary) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(stringResource(R.string.action_clear))
+                FilterChip(
+                    selected = isReadingMode,
+                    onClick = onToggleReadingMode,
+                    label = { Text(text = stringResource(R.string.action_reading_mode), maxLines = 1) },
+                    modifier = Modifier
+                        .heightIn(min = 48.dp)
+                        .testTag(MainScreenTags.READING_TOGGLE)
+                )
+
+                TextButton(
+                    onClick = onRequestClear,
+                    modifier = Modifier
+                        .heightIn(min = 48.dp)
+                        .testTag(MainScreenTags.CLEAR_BUTTON)
+                ) {
+                    Text(text = stringResource(R.string.action_clear), maxLines = 1)
+                }
             }
         }
     }
+}
+
+/**
+ * Підтвердження очищення.
+ *
+ * На десктопі його свідомо немає: там миша, а повернути текст — це Ctrl+V.
+ * На телефоні «Очистити» стоїть поруч із перемикачем режиму, палець ширший
+ * за кнопку, а буфер обміну до того часу вже інший — тож тут зайвий тап
+ * дешевший за втрачений текст.
+ */
+@Composable
+private fun ClearConfirmDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.clear_confirm_title)) },
+        text = { Text(stringResource(R.string.clear_confirm_message)) },
+        confirmButton = {
+            TextButton(onClick = onConfirm, modifier = Modifier.testTag(MainScreenTags.CLEAR_CONFIRM)) {
+                Text(stringResource(R.string.action_clear))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_cancel))
+            }
+        }
+    )
 }
 
 /**

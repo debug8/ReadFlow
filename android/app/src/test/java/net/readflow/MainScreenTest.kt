@@ -1,7 +1,10 @@
 package net.readflow
 
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertIsNotDisplayed
+import androidx.compose.ui.test.assertWidthIsAtLeast
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -52,7 +55,9 @@ class MainScreenTest {
         onToggleStats: () -> Unit = {},
         onChooseSample: () -> Unit = {},
         onToggleReadingMode: () -> Unit = {},
-        onWordTap: (Int) -> Unit = {}
+        onWordTap: (Int) -> Unit = {},
+        onRequestClear: () -> Unit = {},
+        onCancelClear: () -> Unit = {}
     ) {
         composeRule.setContent {
             ReadFlowTheme {
@@ -63,7 +68,9 @@ class MainScreenTest {
                     onToggleStats = onToggleStats,
                     onChooseSample = onChooseSample,
                     onToggleReadingMode = onToggleReadingMode,
-                    onWordTap = onWordTap
+                    onWordTap = onWordTap,
+                    onRequestClear = onRequestClear,
+                    onCancelClear = onCancelClear
                 )
             }
         }
@@ -99,15 +106,63 @@ class MainScreenTest {
         composeRule.onNodeWithText("Очистити").assertDoesNotExist()
     }
 
-    /** «Очистити» з'являється лише тоді, коли є що чистити. */
+    /** «Очистити» з'являється лише тоді, коли є що чистити, і просить підтвердження. */
     @Test
-    fun `clear button appears only when there is text`() {
+    fun `clear button asks before wiping the text`() {
+        var asked = false
         var cleared = false
-        setScreen(state = UiState(text = "щось"), onClear = { cleared = true })
+        setScreen(
+            state = UiState(text = "щось"),
+            onClear = { cleared = true },
+            onRequestClear = { asked = true }
+        )
 
-        composeRule.onNodeWithText("Очистити").assertIsDisplayed().performClick()
+        composeRule.onNodeWithTag(MainScreenTags.CLEAR_BUTTON).assertIsDisplayed().performClick()
+
+        assertEquals("Тап по «Очистити» лише питає.", true, asked)
+        assertEquals("Текст не чиститься до підтвердження.", false, cleared)
+    }
+
+    /** У порожньому стані кнопки «Очистити» немає. */
+    @Test
+    fun `clear button is hidden on the empty screen`() {
+        setScreen()
+
+        composeRule.onNodeWithTag(MainScreenTags.CLEAR_BUTTON).assertDoesNotExist()
+    }
+
+    /** Підтвердження пояснює, що буде, і чистить лише по «Очистити» в діалозі. */
+    @Test
+    fun `clear confirmation wipes the text only when confirmed`() {
+        var cleared = false
+        setScreen(
+            state = UiState(text = "щось", isClearConfirmVisible = true),
+            onClear = { cleared = true }
+        )
+
+        composeRule.onNodeWithText("Очистити текст?").assertIsDisplayed()
+        composeRule.onNodeWithText("Скасувати").assertIsDisplayed()
+
+        composeRule.onNodeWithTag(MainScreenTags.CLEAR_CONFIRM).performClick()
 
         assertEquals(true, cleared)
+    }
+
+    /** «Скасувати» лишає текст на місці. */
+    @Test
+    fun `cancel closes the confirmation without clearing`() {
+        var cleared = false
+        var cancelled = false
+        setScreen(
+            state = UiState(text = "щось", isClearConfirmVisible = true),
+            onClear = { cleared = true },
+            onCancelClear = { cancelled = true }
+        )
+
+        composeRule.onNodeWithText("Скасувати").performClick()
+
+        assertEquals(true, cancelled)
+        assertEquals(false, cleared)
     }
 
     /** Введений текст передається назовні, у ViewModel. */
@@ -245,6 +300,45 @@ class MainScreenTest {
         composeRule.onNodeWithTag(MainScreenTags.READING_TEXT).performTouchInput { longClick() }
 
         composeRule.onNodeWithText("Слово №1").assertIsDisplayed()
+    }
+
+    /**
+     * Разом із підказкою підсвічується й саме слово: інакше незрозуміло, до чого
+     * той номер. Перевіряється по стилях у тексті, а не по пікселях.
+     */
+    @Test
+    fun `long tap highlights the word itself`() {
+        setScreen(state = readingState("Мама"))
+
+        assertEquals("До тапа слово без стилю.", 0, readingSpanCount())
+
+        composeRule.onNodeWithTag(MainScreenTags.READING_TEXT).performTouchInput { longClick() }
+
+        assertEquals("Після тапа слово підсвічене.", 1, readingSpanCount())
+    }
+
+    /** Скільки слів у зоні читання мають власний стиль. */
+    private fun readingSpanCount(): Int = composeRule
+        .onNodeWithTag(MainScreenTags.READING_TEXT)
+        .fetchSemanticsNode()
+        .config
+        .getOrNull(SemanticsProperties.Text)
+        ?.firstOrNull()
+        ?.spanStyles
+        ?.size
+        ?: -1
+
+    /**
+     * Головні кнопки лишаються читабельними, коли поруч з'явилися перемикач
+     * режиму й «Очистити». На живому телефоні чотири елементи в один рядок
+     * стиснули підписи так, що текст став вертикальним.
+     */
+    @Test
+    fun `main buttons stay wide when the text is there`() {
+        setScreen(state = readingState("Мама мила раму.", isReadingMode = false))
+
+        composeRule.onNodeWithText("Вставити").assertWidthIsAtLeast(120.dp)
+        composeRule.onNodeWithText("Обрати зразок").assertWidthIsAtLeast(120.dp)
     }
 
     /** Аркуш зразків групує тексти за класами й показує кількість слів. */

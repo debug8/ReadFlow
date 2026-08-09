@@ -11,6 +11,7 @@ import net.readflow.model.WordToken
  * а не беруться тут: у темній темі червоне тло помилки інше.
  */
 data class WordStyles(
+    val highlight: SpanStyle,
     val boundary: SpanStyle,
     val error: SpanStyle
 )
@@ -37,6 +38,7 @@ fun buildReadingText(
     for (word in words) {
         val style = when (markOf(word)) {
             WordMark.NONE -> continue
+            WordMark.HIGHLIGHT -> styles.highlight
             WordMark.BOUNDARY -> styles.boundary
             WordMark.ERROR -> styles.error
         }

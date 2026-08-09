@@ -117,8 +117,23 @@ class MainViewModel(
         _uiState.update { current -> current.copy(tappedWordNumber = number) }
     }
 
-    /** Кнопка «Очистити». */
-    fun clearText() = onTextChange("")
+    /** Тап по «Очистити»: спершу питаємо, бо палець ширший за кнопку. */
+    fun requestClear() {
+        _uiState.update { current ->
+            if (current.isEmpty) current else current.copy(isClearConfirmVisible = true)
+        }
+    }
+
+    /** «Скасувати» в підтвердженні. */
+    fun cancelClear() {
+        _uiState.update { current -> current.copy(isClearConfirmVisible = false) }
+    }
+
+    /** Підтверджене очищення. */
+    fun clearText() {
+        _uiState.update { current -> current.copy(isClearConfirmVisible = false) }
+        onTextChange("")
+    }
 
     /** Тап по рядку статистики розгортає й згортає його. */
     fun toggleStatsExpanded() {

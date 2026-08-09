@@ -42,6 +42,13 @@ import kotlin.math.roundToInt
 private const val WORD_TOOLTIP_MS = 2000L
 
 /**
+ * Позначок немає. Винесено в константу, а не написано лямбдою в параметрі за
+ * замовчуванням: нова лямбда на кожну композицію щоразу скидала б `remember`
+ * і перебудовувала б увесь текст.
+ */
+private val NoMarks: (WordToken) -> WordMark = { WordMark.NONE }
+
+/**
  * Режим читання: той самий текст, але не редагується, зате реагує на тап по
  * слову.
  *
@@ -58,9 +65,13 @@ fun ReadingView(
     words: List<WordToken>,
     modifier: Modifier = Modifier,
     onWordTap: (Int) -> Unit = {},
-    markOf: (WordToken) -> WordMark = { WordMark.NONE }
+    markOf: (WordToken) -> WordMark = NoMarks
 ) {
     val styles = WordStyles(
+        highlight = SpanStyle(
+            color = MaterialTheme.colorScheme.onPrimaryContainer,
+            background = MaterialTheme.colorScheme.primaryContainer
+        ),
         boundary = SpanStyle(
             color = MaterialTheme.colorScheme.primary,
             fontWeight = FontWeight.Bold,
@@ -72,14 +83,22 @@ fun ReadingView(
         )
     )
 
-    // Текст будується один раз на зміну вмісту чи позначок, а не на кожен кадр:
-    // на 3000 слів побудова помітно дорожча за перемальовування.
-    val annotated = remember(text, words, styles, markOf) {
-        buildReadingText(text, words, styles, markOf)
-    }
-
     var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
     var tooltipWord by remember { mutableStateOf<WordToken?>(null) }
+
+    // Слово під підказкою підсвічується поверх позначок ззовні: підказка
+    // тимчасова, а межа читання й помилка нікуди не діваються — вони
+    // повернуться, щойно підказка згасне.
+    val highlighted = tooltipWord
+    val marks: (WordToken) -> WordMark = remember(markOf, highlighted) {
+        { word -> if (word.number == highlighted?.number) WordMark.HIGHLIGHT else markOf(word) }
+    }
+
+    // Текст будується один раз на зміну вмісту чи позначок, а не на кожен кадр:
+    // на 3000 слів побудова помітно дорожча за перемальовування.
+    val annotated = remember(text, words, styles, marks) {
+        buildReadingText(text, words, styles, marks)
+    }
 
     // Підказка зникає сама: окремої кнопки «закрити» на телефоні не тримають.
     LaunchedEffect(tooltipWord) {

@@ -28,6 +28,9 @@ data class UiState(
     /** Чи показаний нижній аркуш вибору зразка. */
     val isSampleSheetVisible: Boolean = false,
 
+    /** Чи показане підтвердження очищення. У стані, а не в композиції, — щоб переживало поворот. */
+    val isClearConfirmVisible: Boolean = false,
+
     /**
      * Текст, до якого належать [stats] і [words].
      *

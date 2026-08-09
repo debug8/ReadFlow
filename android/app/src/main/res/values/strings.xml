@@ -8,6 +8,9 @@
     <string name="action_paste">Вставити</string>
     <string name="action_choose_sample">Обрати зразок</string>
     <string name="action_clear">Очистити</string>
+    <string name="action_cancel">Скасувати</string>
+    <string name="clear_confirm_title">Очистити текст?</string>
+    <string name="clear_confirm_message">Текст і статистика зникнуть. Повернути можна лише повторною вставкою.</string>
     <string name="clipboard_empty">У буфері обміну немає тексту</string>
 
     <!-- Режим читання -->

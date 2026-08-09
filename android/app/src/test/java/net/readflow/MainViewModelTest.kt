@@ -134,6 +134,60 @@ class MainViewModelTest {
         assertTrue(vm.uiState.value.isEmpty)
     }
 
+    /** Тап по «Очистити» спершу лише питає — текст на місці. */
+    @Test
+    fun `clear asks before wiping the text`() = runTest(dispatcher) {
+        val vm = viewModel()
+        vm.onTextChange("мама мила раму")
+        advanceUntilIdle()
+
+        vm.requestClear()
+
+        assertTrue(vm.uiState.value.isClearConfirmVisible)
+        assertEquals("мама мила раму", vm.uiState.value.text)
+        assertEquals(3, vm.uiState.value.stats.wordCount)
+    }
+
+    /** «Скасувати» закриває підтвердження й нічого не чіпає. */
+    @Test
+    fun `cancelling the confirmation keeps the text`() = runTest(dispatcher) {
+        val vm = viewModel()
+        vm.onTextChange("мама мила раму")
+        advanceUntilIdle()
+        vm.requestClear()
+
+        vm.cancelClear()
+
+        assertFalse(vm.uiState.value.isClearConfirmVisible)
+        assertEquals("мама мила раму", vm.uiState.value.text)
+    }
+
+    /** Підтверджене очищення закриває діалог і скидає текст зі статистикою. */
+    @Test
+    fun `confirmed clear wipes text and closes the dialog`() = runTest(dispatcher) {
+        val vm = viewModel()
+        vm.onTextChange("мама мила раму")
+        advanceUntilIdle()
+        vm.requestClear()
+
+        vm.clearText()
+        advanceUntilIdle()
+
+        assertFalse(vm.uiState.value.isClearConfirmVisible)
+        assertEquals("", vm.uiState.value.text)
+        assertEquals(0, vm.uiState.value.stats.wordCount)
+    }
+
+    /** На порожньому екрані питати нема про що. */
+    @Test
+    fun `clear does not ask when there is nothing to clear`() = runTest(dispatcher) {
+        val vm = viewModel()
+
+        vm.requestClear()
+
+        assertFalse(vm.uiState.value.isClearConfirmVisible)
+    }
+
     /** Список зразків підтягується під час створення екрана. */
     @Test
     fun `samples are loaded on start`() = runTest(dispatcher) {
