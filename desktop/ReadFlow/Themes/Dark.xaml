@@ -30,6 +30,12 @@
     <SolidColorBrush x:Key="NormWithinBrush" Color="#FF81C784" />
     <SolidColorBrush x:Key="NormAboveBrush" Color="#FF64B5F6" />
 
+    <!-- Пункти випадних списків. Обраний пункт — насиченіше тло, а не інший
+         колір тексту: у високому контрасті акцент чистий cyan, і білий текст
+         на ньому не читався б. -->
+    <SolidColorBrush x:Key="ControlHoverBrush" Color="#FF2E3A47" />
+    <SolidColorBrush x:Key="ControlSelectedBrush" Color="#FF3E5068" />
+
     <!-- Таймер під час активного заміру -->
     <SolidColorBrush x:Key="TimerActiveBrush" Color="#FF81C784" />
 

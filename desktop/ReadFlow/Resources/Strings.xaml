@@ -10,8 +10,12 @@
 
     <sys:String x:Key="Str_AppTitle">ReadFlow</sys:String>
 
+    <!-- Спільне -->
+    <sys:String x:Key="Str_Close">Закрити</sys:String>
+
     <!-- Меню -->
     <sys:String x:Key="Str_MenuHelp">Довідка</sys:String>
+    <sys:String x:Key="Str_MenuNorms">Норми читання</sys:String>
     <sys:String x:Key="Str_MenuAbout">Про програму</sys:String>
 
     <!-- Вікно «Про програму» -->
@@ -19,7 +23,15 @@
     <sys:String x:Key="Str_AboutVersionFormat">Версія {0}</sys:String>
     <sys:String x:Key="Str_AboutTagline">Підрахунок слів у тексті й перевірка швидкості читання учнів.</sys:String>
     <sys:String x:Key="Str_AboutDescription">Вставте текст — застосунок одразу порахує слова, знаки, букви, речення й абзаци.&#x0a;&#x0a;Щоб перевірити швидкість читання, увімкніть «Режим читання» над текстом і клікніть слово, на якому учень зупинився. Пробіл запускає й зупиняє замір, Esc скидає його.&#x0a;&#x0a;Дані нікуди не надсилаються: застосунок працює без мережі й без облікових записів.</sys:String>
-    <sys:String x:Key="Str_AboutClose">Закрити</sys:String>
+
+    <!-- Вікно «Норми читання». Самі норми, підписи класів, джерело й застереження
+         сюди не потрапляють: усе це читається з shared/norms.json. -->
+    <sys:String x:Key="Str_NormsTitle">Норми техніки читання</sys:String>
+    <sys:String x:Key="Str_NormsUnit">Слів за хвилину</sys:String>
+    <sys:String x:Key="Str_NormsColumnGrade">Клас</sys:String>
+    <sys:String x:Key="Str_NormsActiveHint">Підсвічено норму для класу й семестру, обраних у панелі налаштувань.</sys:String>
+    <sys:String x:Key="Str_NormsEmpty">Довідник норм не прочитався, тож показати нічого. Перевірте файл norms.json — можливо, у ньому помилка.</sys:String>
+    <sys:String x:Key="Str_NormsFileHint">Щоб змінити норми, покладіть власний norms.json за цим шляхом і перезапустіть програму:</sys:String>
 
     <!-- Ліва панель налаштувань -->
     <sys:String x:Key="Str_SettingsHeader">Налаштування</sys:String>
@@ -35,6 +47,16 @@
     <sys:String x:Key="Str_ReadingFontHint">Ширші літери й більші проміжки між ними. Розмір і міжрядковий інтервал лишаються за повзунками вище.</sys:String>
     <sys:String x:Key="Str_LineHighlight">Підсвічувати рядок</sys:String>
     <sys:String x:Key="Str_LineHighlightHint">У режимі читання підсвічує рядок, над яким курсор, — щоб не губити місце.</sys:String>
+
+    <!-- Норми за класами (Задача 10). Самі норми й підписи оцінок сюди не
+         потрапляють: вони живуть у shared/norms.json — одне джерело правди
+         для десктопа й Android. -->
+    <sys:String x:Key="Str_GradeLabel">Клас</sys:String>
+    <sys:String x:Key="Str_GradeNotSelected">Не обрано</sys:String>
+    <sys:String x:Key="Str_GradeHint">Потрібен, щоб порівняти швидкість читання з орієнтовною нормою. Поки клас не обрано, оцінка не показується.</sys:String>
+    <sys:String x:Key="Str_SemesterLabel">Семестр</sys:String>
+    <sys:String x:Key="Str_SemesterFirst">I семестр</sys:String>
+    <sys:String x:Key="Str_SemesterSecond">II семестр</sys:String>
 
     <sys:String x:Key="Str_ParagraphModeLabel">Абзаци рахувати як</sys:String>
     <sys:String x:Key="Str_ParagraphModeLines">Кожен непорожній рядок</sys:String>
@@ -75,5 +97,8 @@
     <sys:String x:Key="Str_ResultTime">Час читання</sys:String>
     <sys:String x:Key="Str_ResultWpm">Слів за хвилину</sys:String>
     <sys:String x:Key="Str_ResultCpm">Знаків за хвилину</sys:String>
+    <!-- Підпис самої оцінки («нижче норми» тощо) береться з norms.json,
+         тут лише слово «Норма» перед діапазоном: «Норма 50–60». -->
+    <sys:String x:Key="Str_ResultNormCaption">Норма</sys:String>
 
 </ResourceDictionary>

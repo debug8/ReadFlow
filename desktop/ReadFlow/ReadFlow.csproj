@@ -42,6 +42,9 @@
     <Reference Include="System" />
     <Reference Include="System.Configuration" />
     <Reference Include="System.Core" />
+    <!-- DataContractJsonSerializer для shared/norms.json. Складова .NET Framework,
+         не пакет із NuGet: залежності тримаємо на мінімумі (специфікація, 5). -->
+    <Reference Include="System.Runtime.Serialization" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -69,7 +72,15 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
+    <Page Include="Views\NormsWindow.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
     <Page Include="Resources\Strings.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Resources\Controls.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
@@ -98,10 +109,16 @@
       <DependentUpon>AboutWindow.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Views\NormsWindow.xaml.cs">
+      <DependentUpon>NormsWindow.xaml</DependentUpon>
+      <SubType>Code</SubType>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Core\CountingOptions.cs" />
     <Compile Include="Core\MeasurementMode.cs" />
+    <Compile Include="Core\NormsLoader.cs" />
+    <Compile Include="Core\ReadingNorms.cs" />
     <Compile Include="Core\ReadingTimer.cs" />
     <Compile Include="Core\SpeedCalculator.cs" />
     <Compile Include="Core\TextAppearance.cs" />
@@ -148,6 +165,14 @@
     <!-- Сигнал завершення заданої тривалості. Resource, а не Content:
          звук має лежати всередині .exe, а не поруч із ним. -->
     <Resource Include="Resources\timer-end.wav" />
+    <!-- Норми техніки читання. Лінк на shared/norms.json, а не копія: копія
+         рано чи пізно розійшлася б із Android-версією, яка читає той самий файл.
+         Resource — щоб норми були всередині .exe й застосунок працював без
+         жодного файлу поруч. Учитель усе одно може покласти свій norms.json
+         біля .exe: NormsLoader читає спершу його. -->
+    <Resource Include="..\..\shared\norms.json">
+      <Link>Resources\norms.json</Link>
+    </Resource>
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Data\" />

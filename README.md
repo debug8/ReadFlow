@@ -6,8 +6,10 @@
 
 | | Платформа | Стек | Стан |
 |---|---|---|---|
-| [`desktop/`](desktop/) | Windows 7 → 11 | C#, WPF, .NET Framework 4.8 | не розпочато |
-| [`android/`](android/) | Android 8.0+ | Kotlin, Jetpack Compose | не розпочато |
+| [`desktop/`](desktop/) | Windows 7 → 11 | C#, WPF, .NET Framework 4.8 | задачі 1–8 із 12 базових |
+| [`android/`](android/) | Android 8.0+ | Kotlin, Jetpack Compose | задачі 1–3 із 9 |
+
+Детальний стан — [`docs/STATUS.md`](docs/STATUS.md): що вже працює, звідки продовжувати й на які граблі не наступати вдруге. Ця таблиця навмисно груба, щоб не розходитися з ним при кожному коміті.
 
 Дані застосунку зберігаються локально: на Windows — у `%AppData%\ReadFlow\`, на Android — у внутрішньому сховищі. Жодної мережі, акаунтів чи синхронізації.
 

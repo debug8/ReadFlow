@@ -47,11 +47,11 @@
             <Setter Property="TextWrapping" Value="Wrap" />
             <Setter Property="Foreground" Value="{DynamicResource SecondaryForegroundBrush}" />
         </Style>
-        <Style x:Key="SettingComboStyle" TargetType="ComboBox">
-            <Setter Property="Background" Value="{DynamicResource TextBackgroundBrush}" />
-            <Setter Property="Foreground" Value="{DynamicResource TextForegroundBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
-        </Style>
+        <!-- SettingComboStyle тут більше немає: оформлення ComboBox цілком живе
+             в Resources/Controls.xaml і застосовується до всіх списків саме
+             собою. Кольорів у стилі було досить для поля, але не для випадного
+             списку — той малюється власним шаблоном, і в темній темі лишався
+             світлим. -->
         <Style x:Key="SettingCheckStyle" TargetType="CheckBox">
             <Setter Property="Margin" Value="0,6,0,0" />
             <Setter Property="Foreground" Value="{DynamicResource TextForegroundBrush}" />
@@ -93,6 +93,9 @@
               BorderThickness="0,0,0,1">
             <MenuItem Header="{StaticResource Str_MenuHelp}"
                       Foreground="{DynamicResource TextForegroundBrush}">
+                <MenuItem Header="{StaticResource Str_MenuNorms}"
+                          Click="OnNormsClick" />
+                <Separator />
                 <MenuItem Header="{StaticResource Str_MenuAbout}"
                           Click="OnAboutClick" />
             </MenuItem>
@@ -172,8 +175,7 @@
                                    Style="{StaticResource SettingLabelStyle}" />
                         <ComboBox ItemsSource="{Binding Themes}"
                                   SelectedItem="{Binding SelectedTheme}"
-                                  DisplayMemberPath="DisplayName"
-                                  Style="{StaticResource SettingComboStyle}" />
+                                  DisplayMemberPath="DisplayName" />
 
                         <!-- Розмір шрифту -->
                         <TextBlock Style="{StaticResource SettingLabelStyle}">
@@ -228,12 +230,68 @@
                             <Button Content="120" CommandParameter="120" Style="{StaticResource TimerPresetStyle}" />
                         </StackPanel>
 
+                        <!-- Клас і семестр для оцінки за нормою (специфікація, 4.9).
+                             Уся група ховається, якщо довідник норм не прочитався:
+                             мертві контроли гірші за їх відсутність. -->
+                        <StackPanel>
+                            <StackPanel.Style>
+                                <Style TargetType="StackPanel">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasNormsCatalog}" Value="True">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </StackPanel.Style>
+
+                            <TextBlock Text="{StaticResource Str_GradeLabel}"
+                                       Style="{StaticResource SettingLabelStyle}" />
+
+                            <!-- Список класів — із norms.json, а не з розмітки. -->
+                            <Grid>
+                                <ComboBox ItemsSource="{Binding Grades}"
+                                          SelectedItem="{Binding SelectedGrade, Mode=TwoWay}"
+                                          DisplayMemberPath="Label"
+                                          ToolTip="{StaticResource Str_GradeHint}" />
+
+                                <!-- Підказка поверх порожнього списку — той самий прийом,
+                                     що й «Вставте текст сюди» над полем вводу. -->
+                                <TextBlock Text="{StaticResource Str_GradeNotSelected}"
+                                           Margin="8,0,0,0"
+                                           VerticalAlignment="Center"
+                                           IsHitTestVisible="False"
+                                           Foreground="{DynamicResource SecondaryForegroundBrush}">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsGradeSelected}" Value="False">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </Grid>
+
+                            <TextBlock Text="{StaticResource Str_SemesterLabel}"
+                                       Style="{StaticResource SettingLabelStyle}" />
+                            <RadioButton Content="{StaticResource Str_SemesterFirst}"
+                                         GroupName="Semester"
+                                         IsChecked="{Binding IsFirstSemester}"
+                                         Style="{StaticResource SettingRadioStyle}" />
+                            <RadioButton Content="{StaticResource Str_SemesterSecond}"
+                                         GroupName="Semester"
+                                         IsChecked="{Binding IsSecondSemester}"
+                                         Style="{StaticResource SettingRadioStyle}" />
+                        </StackPanel>
+
                         <!-- Режим підрахунку абзаців (специфікація, 4.6) -->
                         <TextBlock Text="{StaticResource Str_ParagraphModeLabel}"
                                    Style="{StaticResource SettingLabelStyle}" />
                         <ComboBox SelectedValue="{Binding ParagraphMode, Mode=TwoWay}"
-                                  SelectedValuePath="Tag"
-                                  Style="{StaticResource SettingComboStyle}">
+                                  SelectedValuePath="Tag">
                             <ComboBoxItem Content="{StaticResource Str_ParagraphModeLines}"
                                           Tag="{x:Static core:ParagraphMode.NonEmptyLines}" />
                             <ComboBoxItem Content="{StaticResource Str_ParagraphModeBlocks}"
@@ -547,6 +605,50 @@
                                            Text="{Binding CleanWordsPerMinute, StringFormat={}{0:N0}}" />
                                 <TextBlock Style="{StaticResource StatCaptionStyle}"
                                            Text="{StaticResource Str_ResultCleanWpm}" />
+                            </StackPanel>
+
+                            <!-- Оцінка за нормою (специфікація, 4.9). Зʼявляється лише
+                                 коли обрано клас: без нього невідомо, з чим порівнювати. -->
+                            <StackPanel Width="150" Margin="0,0,12,6">
+                                <StackPanel.Style>
+                                    <Style TargetType="StackPanel">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding HasNormStatus}" Value="True">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </StackPanel.Style>
+
+                                <!-- Текст оцінки — з norms.json; колір — із теми.
+                                     Три ключі NormBelow/Within/AboveBrush є в кожній
+                                     темі з Задачі 1a й нарешті використовуються. -->
+                                <TextBlock Text="{Binding NormStatusText}"
+                                           FontSize="16" FontWeight="SemiBold"
+                                           TextWrapping="Wrap">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="{DynamicResource TextForegroundBrush}" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding NormStatus}" Value="Below">
+                                                    <Setter Property="Foreground" Value="{DynamicResource NormBelowBrush}" />
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding NormStatus}" Value="Within">
+                                                    <Setter Property="Foreground" Value="{DynamicResource NormWithinBrush}" />
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding NormStatus}" Value="Above">
+                                                    <Setter Property="Foreground" Value="{DynamicResource NormAboveBrush}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+
+                                <TextBlock Style="{StaticResource StatCaptionStyle}">
+                                    <Run Text="{StaticResource Str_ResultNormCaption}" />
+                                    <Run Text="{Binding NormRangeText, Mode=OneWay}" />
+                                </TextBlock>
                             </StackPanel>
                         </StackPanel>
                     </StackPanel>

@@ -1,0 +1,183 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--
+        Шаблони стандартних контролів, які інакше лишаються системними.
+
+        Навіщо це взагалі: WPF бере оформлення ComboBox із теми Windows (Aero2),
+        і кольори там системні. Задати Background у стилі недостатньо — випадний
+        список живе у власному Popup, оформленому шаблоном, а не властивостями
+        контрола. Тому в темній темі поле вводу ставало темним, а список під ним
+        лишався світлим: біле по білому.
+
+        Тут немає жодного кольору — тільки посилання на ключі теми через
+        DynamicResource. Правило «кольори лише в Themes/» лишається чинним.
+
+        Цей словник підключається в App.xaml і НЕ містить ключа ThemeDisplayName,
+        тож ThemeManager не сприймає його за тему й не підмінює при перемиканні.
+    -->
+
+    <!--
+        Кнопка розкриття. Займає весь контрол: клік будь-де відкриває список,
+        як у системному ComboBox. Вміст показує окремий ContentPresenter поверх неї.
+    -->
+    <Style x:Key="ComboBoxToggleStyle" TargetType="ToggleButton">
+        <Setter Property="OverridesDefaultStyle" Value="True" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="IsTabStop" Value="False" />
+        <!-- Press, а не Release: список має розкриватися на натисканні. -->
+        <Setter Property="ClickMode" Value="Press" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Border x:Name="Frame"
+                            Background="{DynamicResource TextBackgroundBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1"
+                            SnapsToDevicePixels="True">
+                        <Path x:Name="Arrow"
+                              HorizontalAlignment="Right"
+                              VerticalAlignment="Center"
+                              Margin="0,1,9,0"
+                              Data="M 0,0 L 8,0 L 4,5 Z"
+                              Fill="{DynamicResource SecondaryForegroundBrush}" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Frame" Property="BorderBrush"
+                                    Value="{DynamicResource AccentBrush}" />
+                            <Setter TargetName="Arrow" Property="Fill"
+                                    Value="{DynamicResource TextForegroundBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Frame" Property="BorderBrush"
+                                    Value="{DynamicResource AccentBrush}" />
+                            <Setter TargetName="Arrow" Property="Fill"
+                                    Value="{DynamicResource TextForegroundBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Frame" Property="Background"
+                                    Value="{DynamicResource PanelBackgroundBrush}" />
+                            <Setter TargetName="Arrow" Property="Fill"
+                                    Value="{DynamicResource BorderBrush}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--
+        Пункт списку. Стиль без ключа — застосовується до всіх ComboBoxItem
+        автоматично, і до тих, що описані в розмітці, і до згенерованих із даних.
+
+        Обраний пункт має насиченіше тло, ніж пункт під курсором, а не інший
+        колір тексту: у високому контрасті акцент — чистий cyan, і білий текст
+        на ньому не читався б. Так підпис лишається TextForegroundBrush у
+        будь-якій темі.
+    -->
+    <Style TargetType="ComboBoxItem">
+        <Setter Property="OverridesDefaultStyle" Value="True" />
+        <Setter Property="Padding" Value="8,5" />
+        <Setter Property="Foreground" Value="{DynamicResource TextForegroundBrush}" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ComboBoxItem">
+                    <Border x:Name="Frame"
+                            Background="Transparent"
+                            Padding="{TemplateBinding Padding}"
+                            SnapsToDevicePixels="True">
+                        <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="Frame" Property="Background"
+                                    Value="{DynamicResource ControlSelectedBrush}" />
+                        </Trigger>
+                        <!-- IsHighlighted, а не IsMouseOver: так само підсвічується
+                             пункт, до якого дійшли стрілками з клавіатури. -->
+                        <Trigger Property="IsHighlighted" Value="True">
+                            <Setter TargetName="Frame" Property="Background"
+                                    Value="{DynamicResource ControlHoverBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Foreground"
+                                    Value="{DynamicResource SecondaryForegroundBrush}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--
+        Сам ComboBox. Стиль без ключа — діє на всі випадні списки застосунку,
+        тож новий список оформлюється сам, без згадки стилю в розмітці.
+
+        Редагований ComboBox (IsEditable=True) цим шаблоном не підтримується:
+        у ньому немає PART_EditableTextBox. У застосунку таких немає, і якщо
+        колись зʼявиться — поле для вводу треба дописати сюди.
+    -->
+    <Style TargetType="ComboBox">
+        <Setter Property="Background" Value="{DynamicResource TextBackgroundBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource TextForegroundBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+        <Setter Property="MinHeight" Value="24" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+        <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ComboBox">
+                    <Grid x:Name="Root">
+                        <ToggleButton Style="{StaticResource ComboBoxToggleStyle}"
+                                      IsChecked="{Binding IsDropDownOpen, Mode=TwoWay,
+                                                  RelativeSource={RelativeSource TemplatedParent}}" />
+
+                        <!-- IsHitTestVisible=False: клік по підпису має відкривати
+                             список, а не «застрягати» на тексті. -->
+                        <ContentPresenter Margin="9,2,26,2"
+                                          VerticalAlignment="Center"
+                                          HorizontalAlignment="Left"
+                                          IsHitTestVisible="False"
+                                          Content="{TemplateBinding SelectionBoxItem}"
+                                          ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                          ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}" />
+
+                        <!-- Імʼя PART_Popup обовʼязкове: саме за ним ComboBox
+                             знаходить свій список у шаблоні. -->
+                        <Popup x:Name="PART_Popup"
+                               AllowsTransparency="True"
+                               Focusable="False"
+                               Placement="Bottom"
+                               VerticalOffset="1"
+                               PopupAnimation="None"
+                               IsOpen="{TemplateBinding IsDropDownOpen}">
+                            <Border MinWidth="{Binding ActualWidth, ElementName=Root}"
+                                    MaxHeight="{TemplateBinding MaxDropDownHeight}"
+                                    Background="{DynamicResource TextBackgroundBrush}"
+                                    BorderBrush="{DynamicResource BorderBrush}"
+                                    BorderThickness="1"
+                                    SnapsToDevicePixels="True">
+                                <ScrollViewer SnapsToDevicePixels="True"
+                                              HorizontalScrollBarVisibility="Disabled"
+                                              VerticalScrollBarVisibility="Auto">
+                                    <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained" />
+                                </ScrollViewer>
+                            </Border>
+                        </Popup>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Foreground"
+                                    Value="{DynamicResource SecondaryForegroundBrush}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+</ResourceDictionary>

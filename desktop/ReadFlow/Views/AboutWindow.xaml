@@ -49,7 +49,7 @@
                    FontSize="12"
                    Foreground="{DynamicResource SecondaryForegroundBrush}" />
 
-        <Button Content="{StaticResource Str_AboutClose}"
+        <Button Content="{StaticResource Str_Close}"
                 IsCancel="True"
                 IsDefault="True"
                 Click="OnCloseClick"

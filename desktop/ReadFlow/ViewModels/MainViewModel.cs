@@ -32,9 +32,20 @@ namespace ReadFlow.ViewModels
         public const int MinTimerSeconds = 5;
         public const int MaxTimerSeconds = 3600;
 
+        /// <summary>
+        /// Семестр за замовчуванням — другий. Норми першого семестру нижчі,
+        /// і показати їх у травні означало б завищити оцінку всьому класу;
+        /// зворотна помилка помітніша й швидше виправляється вчителем.
+        /// </summary>
+        public const int DefaultSemester = 2;
+
         private readonly DispatcherTimer _recalculateTimer;
         private readonly CountingOptions _countingOptions = new CountingOptions();
         private readonly ReadingTimer _readingTimer = new ReadingTimer();
+
+        // Довідник норм. І числа, і підписи оцінок у ньому — із shared/norms.json;
+        // у коді немає ані того, ані іншого (непорушне правило 2).
+        private readonly NormsCatalog _norms = NormsLoader.Current;
 
         // Помилки зберігаються за номерами слів, а не за посиланнями на них:
         // при перерахунку статистики слова створюються заново, і позначки
@@ -65,6 +76,16 @@ namespace ReadFlow.ViewModels
         private double _lineHeightOverride;
 
         private int _timerSeconds;
+
+        // null — клас не обраний. Норма без класу невідома, і краще не показати
+        // оцінки взагалі, ніж підсунути вчителеві норму навмання.
+        //
+        // Саме обʼєкт класу, а не його номер: ComboBox привʼязується до
+        // SelectedItem, і «не обрано» стає звичайним null замість числа 0,
+        // яке довелося б окремо конвертувати в порожній вибір і назад.
+        private GradeNorms _selectedGrade;
+        private int _semester;
+
         private MeasurementMode _measurementMode;
         private bool _markErrors;
         private bool _isSettingsExpanded;
@@ -343,6 +364,188 @@ namespace ReadFlow.ViewModels
         /// <summary>Швидкий вибір тривалості: 30 / 60 / 120 секунд.</summary>
         public ICommand SetTimerSecondsCommand { get; private set; }
 
+        // ── Норми за класами (специфікація, 4.9) ──────────────────────────
+
+        /// <summary>
+        /// Класи з довідника норм. Список і підписи — з <c>shared/norms.json</c>:
+        /// у розмітці класів немає, інакше правка норм вимагала б правки XAML.
+        /// </summary>
+        public IList<GradeNorms> Grades
+        {
+            get { return _norms.Grades; }
+        }
+
+        /// <summary>
+        /// Чи є взагалі довідник норм. Коли ні — контроли класу й семестру
+        /// не показуються: сірий випадний список ні про що не говорить учителю
+        /// і суперечить мінімалізму (специфікація, 3).
+        /// </summary>
+        public bool HasNormsCatalog
+        {
+            get { return !_norms.IsEmpty; }
+        }
+
+        /// <summary>
+        /// Обраний клас із довідника або <c>null</c>, якщо вчитель його ще не обрав.
+        /// Це те, до чого привʼязаний випадний список.
+        /// </summary>
+        public GradeNorms SelectedGrade
+        {
+            get { return _selectedGrade; }
+            set
+            {
+                if (!Set(ref _selectedGrade, value))
+                {
+                    return;
+                }
+
+                var number = Grade;
+                SaveSetting(() => Settings.Default.Grade = number);
+
+                OnPropertyChanged("Grade");
+                OnPropertyChanged("IsGradeSelected");
+                PublishNorm();
+            }
+        }
+
+        /// <summary>
+        /// Номер обраного класу або 0. Зручніше за <see cref="SelectedGrade"/>
+        /// і в налаштуваннях, і в тестах; клас, якого немає в довіднику,
+        /// означає те саме, що «не обрано».
+        /// </summary>
+        public int Grade
+        {
+            get { return _selectedGrade == null ? 0 : _selectedGrade.Grade; }
+            set { SelectedGrade = FindGrade(value); }
+        }
+
+        /// <summary>Чи обрано клас.</summary>
+        public bool IsGradeSelected
+        {
+            get { return _selectedGrade != null; }
+        }
+
+        /// <summary>
+        /// Обраний семестр. Норми за перше й друге півріччя різні, і показувати
+        /// у вересні норму кінця року означало б записати весь клас у відстаючі.
+        /// </summary>
+        public int Semester
+        {
+            get { return _semester; }
+            set
+            {
+                if (!Set(ref _semester, value))
+                {
+                    return;
+                }
+
+                SaveSetting(() => Settings.Default.Semester = value);
+                OnPropertyChanged("IsFirstSemester");
+                OnPropertyChanged("IsSecondSemester");
+                PublishNorm();
+            }
+        }
+
+        /// <summary>Перший семестр — для привʼязки радіокнопки.</summary>
+        public bool IsFirstSemester
+        {
+            get { return _semester == 1; }
+            set
+            {
+                if (value)
+                {
+                    Semester = 1;
+                }
+            }
+        }
+
+        /// <summary>Другий семестр — для привʼязки радіокнопки.</summary>
+        public bool IsSecondSemester
+        {
+            get { return _semester == 2; }
+            set
+            {
+                if (value)
+                {
+                    Semester = 2;
+                }
+            }
+        }
+
+        /// <summary>Норма для обраного класу й семестру або <c>null</c>.</summary>
+        public ReadingNorm CurrentNorm
+        {
+            get { return _norms.Find(Grade, _semester); }
+        }
+
+        private GradeNorms FindGrade(int number)
+        {
+            foreach (var grade in _norms.Grades)
+            {
+                if (grade.Grade == number)
+                {
+                    return grade;
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>Межі норми у вигляді «50–60». Лише цифри й тире — перекладати нічого.</summary>
+        public string NormRangeText
+        {
+            get
+            {
+                var norm = CurrentNorm;
+
+                return norm == null
+                    ? string.Empty
+                    : norm.Min.ToString(CultureInfo.CurrentCulture) + "–" +
+                      norm.Max.ToString(CultureInfo.CurrentCulture);
+            }
+        }
+
+        /// <summary>
+        /// Оцінка результату відносно норми. Рахується від <see cref="WordsPerMinute"/>,
+        /// а не від «чистої» швидкості: норми МОН — про темп читання, а помилки
+        /// вчитель бачить окремим показником.
+        /// </summary>
+        public NormEvaluation NormStatus
+        {
+            get
+            {
+                return HasResult
+                    ? _norms.Evaluate(WordsPerMinute, CurrentNorm)
+                    : Core.NormEvaluation.Unknown;
+            }
+        }
+
+        /// <summary>Підпис оцінки з довідника: «нижче норми» / «у межах норми» / «вище норми».</summary>
+        public string NormStatusText
+        {
+            get { return _norms.Describe(NormStatus); }
+        }
+
+        /// <summary>Чи є що показати в блоці оцінки.</summary>
+        public bool HasNormStatus
+        {
+            get { return NormStatus != Core.NormEvaluation.Unknown; }
+        }
+
+        /// <summary>
+        /// Оцінка залежить і від норми, і від підсумку заміру, тому обчислюється
+        /// на льоту, а не зберігається полем: два джерела правди про одне число
+        /// рано чи пізно розійшлися б.
+        /// </summary>
+        private void PublishNorm()
+        {
+            OnPropertyChanged("CurrentNorm");
+            OnPropertyChanged("NormRangeText");
+            OnPropertyChanged("NormStatus");
+            OnPropertyChanged("NormStatusText");
+            OnPropertyChanged("HasNormStatus");
+        }
+
         // ── Таймер і підсумок ─────────────────────────────────────────────
 
         /// <summary>Чи триває замір.</summary>
@@ -361,7 +564,14 @@ namespace ReadFlow.ViewModels
         public bool HasResult
         {
             get { return _hasResult; }
-            private set { Set(ref _hasResult, value); }
+            private set
+            {
+                if (Set(ref _hasResult, value))
+                {
+                    // Без підсумку немає й оцінки за нормою.
+                    PublishNorm();
+                }
+            }
         }
 
         /// <summary>Час завершеного заміру у форматі мм:сс.</summary>
@@ -864,6 +1074,9 @@ namespace ReadFlow.ViewModels
             // «Чиста» швидкість — та сама формула, але слова з помилками
             // не рахуються прочитаними (специфікація, 4.7).
             CleanWordsPerMinute = SpeedCalculator.WordsPerMinute(read - ErrorCount, seconds);
+
+            // WPM змінився — оцінка за нормою мусить наздогнати.
+            PublishNorm();
         }
 
         /// <summary>
@@ -919,6 +1132,11 @@ namespace ReadFlow.ViewModels
                 _fontSizeOverride = settings.FontSize;
                 _lineHeightOverride = settings.LineHeight;
                 _timerSeconds = settings.TimerSeconds;
+
+                // Клас із налаштувань міг зникнути з довідника: учитель поправив
+                // norms.json і прибрав рядок. Тоді це просто «не обрано».
+                _selectedGrade = FindGrade(settings.Grade);
+                _semester = settings.Semester;
                 _markErrors = settings.MarkErrors;
                 _isSettingsExpanded = settings.SettingsExpanded;
                 _showLineHighlight = settings.LineHighlight;
@@ -937,11 +1155,17 @@ namespace ReadFlow.ViewModels
                 _timerSeconds = 60;
                 _isSettingsExpanded = true;
                 _measurementMode = MeasurementMode.Timer;
+                _semester = DefaultSemester;
             }
 
             if (_timerSeconds < MinTimerSeconds || _timerSeconds > MaxTimerSeconds)
             {
                 _timerSeconds = 60;
+            }
+
+            if (_semester != 1 && _semester != 2)
+            {
+                _semester = DefaultSemester;
             }
 
             // Перекриття застосовуємо після читання: якщо їх немає, у ресурсах

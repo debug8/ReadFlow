@@ -1,6 +1,7 @@
 ﻿using System.Windows;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
+using ReadFlow.Core;
 using ReadFlow.ViewModels;
 using ReadFlow.Views;
 
@@ -28,6 +29,28 @@ namespace ReadFlow
         {
             var about = new AboutWindow { Owner = this };
             about.ShowDialog();
+        }
+
+        /// <summary>
+        /// Довідка → Норми читання: усі норми одразу, за класами й семестрами.
+        ///
+        /// Обраний клас і семестр передаються, щоб підсвітити саме ту норму,
+        /// за якою зараз оцінюється замір. Без ViewModel вікно теж відкриється —
+        /// просто без підсвітки.
+        /// </summary>
+        private void OnNormsClick(object sender, RoutedEventArgs e)
+        {
+            var viewModel = DataContext as MainViewModel;
+
+            var norms = new NormsWindow(
+                NormsLoader.Current,
+                viewModel == null ? 0 : viewModel.Grade,
+                viewModel == null ? 0 : viewModel.Semester)
+            {
+                Owner = this
+            };
+
+            norms.ShowDialog();
         }
 
         /// <summary>

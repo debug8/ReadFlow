@@ -85,6 +85,38 @@ namespace ReadFlow.Properties
             }
         }
 
+        /// <summary>Клас для оцінки за нормою. 0 — клас не обраний.</summary>
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("0")]
+        public int Grade
+        {
+            get
+            {
+                return ((int)(this["Grade"]));
+            }
+            set
+            {
+                this["Grade"] = value;
+            }
+        }
+
+        /// <summary>Семестр для оцінки за нормою: 1 або 2.</summary>
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("2")]
+        public int Semester
+        {
+            get
+            {
+                return ((int)(this["Semester"]));
+            }
+            set
+            {
+                this["Semester"] = value;
+            }
+        }
+
         /// <summary>Режим підрахунку абзаців (значення <c>ParagraphMode</c>).</summary>
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]

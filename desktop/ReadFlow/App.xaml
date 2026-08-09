@@ -7,6 +7,11 @@
             <ResourceDictionary.MergedDictionaries>
                 <!-- Рядки інтерфейсу. Тема підключається окремим словником у Задачі 1a. -->
                 <ResourceDictionary Source="Resources/Strings.xaml" />
+                <!-- Шаблони контролів, які інакше беруть оформлення з теми Windows
+                     (насамперед випадний список ComboBox). Кольорів тут немає —
+                     лише посилання на ключі теми через DynamicResource, тож порядок
+                     відносно словника теми значення не має. -->
+                <ResourceDictionary Source="Resources/Controls.xaml" />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Application.Resources>
