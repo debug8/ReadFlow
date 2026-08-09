@@ -3,6 +3,8 @@ package net.readflow
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.assertWidthIsAtLeast
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -12,7 +14,18 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.longClick
+import net.readflow.core.MeasurementCalculator
+import net.readflow.core.MeasurementInput
+import net.readflow.core.MeasurementMode
+import net.readflow.core.NormEvaluation
+import net.readflow.core.NormLabels
+import net.readflow.core.NormsCatalog
+import net.readflow.core.GradeNorms
+import net.readflow.core.ReadingNorm
 import net.readflow.core.TextStatsCalculator
+import net.readflow.model.Settings
+import net.readflow.ui.SettingsSheetContent
+import net.readflow.ui.SettingsTags
 import net.readflow.model.TextSample
 import net.readflow.model.TextStats
 import net.readflow.ui.MainScreenContent
@@ -57,7 +70,8 @@ class MainScreenTest {
         onToggleReadingMode: () -> Unit = {},
         onWordTap: (Int) -> Unit = {},
         onRequestClear: () -> Unit = {},
-        onCancelClear: () -> Unit = {}
+        onCancelClear: () -> Unit = {},
+        onModeChange: (MeasurementMode) -> Unit = {}
     ) {
         composeRule.setContent {
             ReadFlowTheme {
@@ -70,7 +84,8 @@ class MainScreenTest {
                     onToggleReadingMode = onToggleReadingMode,
                     onWordTap = onWordTap,
                     onRequestClear = onRequestClear,
-                    onCancelClear = onCancelClear
+                    onCancelClear = onCancelClear,
+                    onModeChange = onModeChange
                 )
             }
         }
@@ -341,6 +356,126 @@ class MainScreenTest {
         composeRule.onNodeWithText("Обрати зразок").assertWidthIsAtLeast(120.dp)
     }
 
+    // --- Задачі 5–7: замір, режими, налаштування ---
+
+    /** Перемикач режимів з'являється разом із текстом і показує всі три режими. */
+    @Test
+    fun `mode selector shows all three modes`() {
+        setScreen(state = readingState("Мама мила раму.", isReadingMode = false))
+
+        composeRule.onNodeWithTag(MainScreenTags.MODE_SELECTOR).assertIsDisplayed()
+        composeRule.onNodeWithText("Тап").assertIsDisplayed()
+        composeRule.onNodeWithText("Таймер").assertIsDisplayed()
+        composeRule.onNodeWithText("Помилки").assertIsDisplayed()
+    }
+
+    /** Тап по сегменту просить змінити режим. */
+    @Test
+    fun `mode selector asks to change the mode`() {
+        var chosen: MeasurementMode? = null
+        setScreen(
+            state = readingState("Мама мила раму.", isReadingMode = false),
+            onModeChange = { chosen = it }
+        )
+
+        composeRule.onNodeWithText("Помилки").performClick()
+
+        assertEquals(MeasurementMode.ERRORS, chosen)
+    }
+
+    /** Кнопка заміру неактивна, доки нема тексту, і активна, коли він є. */
+    @Test
+    fun `start button is disabled without text`() {
+        setScreen()
+
+        composeRule.onNodeWithTag(MainScreenTags.START_STOP).assertIsNotEnabled()
+    }
+
+    /** Під час заміру кнопка стає «Стоп». */
+    @Test
+    fun `running measurement shows stop and the elapsed time`() {
+        setScreen(
+            state = readingState("Мама мила раму.", isReadingMode = false)
+                .copy(isTimerRunning = true, elapsedMillis = 95_000)
+        )
+
+        composeRule.onNodeWithText("Стоп").assertIsDisplayed()
+        composeRule.onNodeWithTag(MainScreenTags.TIMER_VALUE).assertTextEquals("01:35")
+    }
+
+    /** До заміру підсумку на екрані немає. */
+    @Test
+    fun `result row is hidden without a result`() {
+        setScreen(state = readingState("Мама мила раму.", isReadingMode = false))
+
+        composeRule.onNodeWithTag(MainScreenTags.RESULT_ROW).assertDoesNotExist()
+    }
+
+    /** Підсумок показує швидкість, помилки й оцінку за нормою. */
+    @Test
+    fun `result row shows the numbers and the norm verdict`() {
+        val text = "один два три чотири пʼять шість сім вісім девʼять десять"
+        val base = readingState(text, isReadingMode = false)
+        val result = MeasurementCalculator.evaluate(
+            MeasurementInput(
+                mode = MeasurementMode.ERRORS,
+                durationSeconds = 60,
+                elapsedMillis = 10_000,
+                isRunning = false,
+                // Числа задані прямо, а не взяті зі стану: тест про рядок
+                // підсумку, а не про підрахунок — той перевірений окремо.
+                totalWords = 10,
+                totalCharsNoSpaces = 46,
+                errorWordNumbers = setOf(1)
+            )
+        )!!
+
+        setScreen(
+            state = base.copy(
+                mode = MeasurementMode.ERRORS,
+                elapsedMillis = 10_000,
+                result = result,
+                evaluation = NormEvaluation.WITHIN,
+                norms = NORMS,
+                settings = Settings(grade = 2, semester = 2)
+            )
+        )
+
+        composeRule.onNodeWithTag(MainScreenTags.RESULT_ROW).assertIsDisplayed()
+        // 10 слів за 10 с — це 60 слів/хв; без однієї помилки — 54.
+        composeRule.onNodeWithText("60").assertIsDisplayed()
+        composeRule.onNodeWithText("54").assertIsDisplayed()
+        composeRule.onNodeWithText("у межах норми").assertIsDisplayed()
+    }
+
+    /** Аркуш налаштувань показує клас із довідника, а не з коду. */
+    @Test
+    fun `settings sheet lists grades from the norms catalog`() {
+        composeRule.setContent {
+            ReadFlowTheme {
+                SettingsSheetContent(settings = Settings(grade = 2, semester = 2), norms = NORMS)
+            }
+        }
+
+        // assertExists, а не assertIsDisplayed: аркуш у тесті не має висоти
+        // екрана, тож нижні рядки існують у дереві, але лежать за краєм.
+        composeRule.onNodeWithText("2 клас").assertExists()
+        composeRule.onNodeWithText("4 клас").assertExists()
+        composeRule.onNodeWithText("Норма: 50–60 слів за хвилину").assertExists()
+    }
+
+    /** Без довідника норм клас обирати нема з чого — і це пояснено словами. */
+    @Test
+    fun `settings sheet explains a missing norms catalog`() {
+        composeRule.setContent {
+            ReadFlowTheme {
+                SettingsSheetContent(settings = Settings(), norms = NormsCatalog.Empty)
+            }
+        }
+
+        composeRule.onNodeWithTag(SettingsTags.NORM_HINT).assertExists()
+    }
+
     /** Аркуш зразків групує тексти за класами й показує кількість слів. */
     @Test
     fun `sample sheet groups by grade`() {
@@ -374,5 +509,18 @@ class MainScreenTest {
         composeRule.onNodeWithText(
             "Зразків ще немає. Додайте тексти в shared/samples/ і перезберіть додаток."
         ).assertIsDisplayed()
+    }
+
+    private companion object {
+
+        /** Довідник норм для екранних тестів — рівно два класи. */
+        val NORMS = NormsCatalog(
+            version = 1,
+            grades = listOf(
+                GradeNorms(2, "2 клас", listOf(ReadingNorm(2, 2, 50, 60))),
+                GradeNorms(4, "4 клас", listOf(ReadingNorm(4, 2, 90, 95)))
+            ),
+            labels = NormLabels.of("нижче норми", "у межах норми", "вище норми")
+        )
     }
 }

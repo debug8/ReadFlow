@@ -30,10 +30,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import kotlinx.coroutines.delay
 import net.readflow.R
+import net.readflow.model.Settings
 import net.readflow.model.WordMark
 import net.readflow.model.WordToken
 import kotlin.math.roundToInt
@@ -52,8 +54,9 @@ private val NoMarks: (WordToken) -> WordMark = { WordMark.NONE }
  * Режим читання: той самий текст, але не редагується, зате реагує на тап по
  * слову.
  *
- * Короткий тап віддає номер слова назовні (Задачі 5–6 зроблять із нього межу
- * читання й позначку помилки), довгий — показує `Слово №N` над самим словом.
+ * Розведення жестів — `SPEC.md`, 4.7: короткий тап ставить межу читання, а в
+ * режимі «Помилки» позначає помилку; довгий тап — завжди межа, і завжди
+ * показує `Слово №N`. Довгий тап тут заміняє правий клік десктопа.
  *
  * @param text текст, до якого належать [words]; у режимі читання він
  *   відстає від поля вводу на дебаунс — і саме тому передається окремо,
@@ -64,7 +67,10 @@ fun ReadingView(
     text: String,
     words: List<WordToken>,
     modifier: Modifier = Modifier,
+    fontSizeSp: Int = Settings.DEFAULT_FONT_SIZE_SP,
+    lineSpacing: Float = Settings.DEFAULT_LINE_SPACING,
     onWordTap: (Int) -> Unit = {},
+    onWordLongPress: (Int) -> Unit = {},
     markOf: (WordToken) -> WordMark = NoMarks
 ) {
     val styles = WordStyles(
@@ -108,11 +114,16 @@ fun ReadingView(
         }
     }
 
+    val textStyle = MaterialTheme.typography.bodyLarge.copy(
+        fontSize = fontSizeSp.sp,
+        lineHeight = (fontSizeSp * lineSpacing).sp
+    )
+
     Column(modifier = modifier.verticalScroll(rememberScrollState())) {
         Box {
             Text(
                 text = annotated,
-                style = MaterialTheme.typography.bodyLarge,
+                style = textStyle,
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag(MainScreenTags.READING_TEXT)
@@ -129,6 +140,10 @@ fun ReadingView(
                             onLongPress = { position ->
                                 val index = wordIndexAt(words, offsetAt(layout, position))
                                 tooltipWord = if (index >= 0) words[index] else null
+
+                                if (index >= 0) {
+                                    onWordLongPress(words[index].number)
+                                }
                             }
                         )
                     },

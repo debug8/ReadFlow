@@ -83,6 +83,33 @@ object TextStatsCalculator {
     }
 
     /**
+     * Знаки без пробілів від початку тексту до [endExclusive].
+     *
+     * Потрібно для «знаків за хвилину», коли поставлена межа читання: учень
+     * прочитав не весь текст, і в чисельник має піти рівно те, що він пройшов.
+     *
+     * Нормалізація переносів тут не потрібна й була б шкідлива: `\r` — теж
+     * пробільний символ, тож на кількість непробільних знаків він не впливає,
+     * зате нормалізація зсунула б індекси, які приходять із меж слів.
+     */
+    fun countCharsNoSpaces(text: String?, endExclusive: Int): Int {
+        if (text.isNullOrEmpty() || endExclusive <= 0) {
+            return 0
+        }
+
+        val end = if (endExclusive > text.length) text.length else endExclusive
+        var count = 0
+
+        for (i in 0 until end) {
+            if (!text[i].isWhitespace()) {
+                count++
+            }
+        }
+
+        return count
+    }
+
+    /**
      * Порахувати всю статистику тексту.
      *
      * @param options параметри користувача; `null` — значення за замовчуванням.

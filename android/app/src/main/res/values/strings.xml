@@ -33,9 +33,44 @@
     <string name="stat_paragraphs">Абзаци</string>
     <string name="cd_stats_row">Рядок статистики, тап розгортає</string>
 
+    <!-- Режими заміру. Літери A/B/C зі специфікації лишилися в документації:
+         на екрані 360 dp у сегмент влазить або літера, або зрозуміле слово. -->
+    <string name="mode_tap_stop">Тап</string>
+    <string name="mode_timer">Таймер</string>
+    <string name="mode_errors">Помилки</string>
+
     <!-- Нижня панель керування -->
     <string name="timer_zero">00:00</string>
     <string name="action_start">Старт</string>
+    <string name="action_stop">Стоп</string>
+    <string name="duration_seconds">%1$d с</string>
+
+    <!-- Підсумок заміру -->
+    <string name="result_wpm">Слів/хв</string>
+    <string name="result_cpm">Знаків/хв</string>
+    <string name="result_words_read">Прочитано</string>
+    <string name="result_time">Час</string>
+    <string name="result_errors">Помилки</string>
+    <string name="result_error_share">Від прочитаного</string>
+    <string name="result_clean_wpm">Чиста швидк.</string>
+
+    <!-- Налаштування -->
+    <string name="action_settings">Налаштування</string>
+    <string name="settings_title">Налаштування</string>
+    <string name="settings_font_size_value">Розмір шрифту: %1$d</string>
+    <string name="settings_line_spacing_value">Міжрядковий інтервал: %1$s</string>
+    <string name="settings_duration">Тривалість заміру</string>
+    <string name="settings_theme">Тема</string>
+    <string name="theme_system">Системна</string>
+    <string name="theme_light">Світла</string>
+    <string name="theme_dark">Темна</string>
+    <string name="settings_grade">Клас учня</string>
+    <string name="settings_grade_none">Не обрано</string>
+    <string name="settings_semester">Семестр</string>
+    <string name="settings_semester_value">%1$d семестр</string>
+    <string name="settings_norm_range">Норма: %1$d–%2$d слів за хвилину</string>
+    <string name="settings_norm_unknown">Для цього семестру норми немає</string>
+    <string name="settings_norms_missing">Довідник норм не прочитався — оцінка за нормою не показується.</string>
 
     <!--
         Форми множини для слова «слово». Вибір робиться в коді

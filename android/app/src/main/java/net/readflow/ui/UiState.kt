@@ -1,5 +1,10 @@
 package net.readflow.ui
 
+import net.readflow.core.MeasurementMode
+import net.readflow.core.MeasurementResult
+import net.readflow.core.NormEvaluation
+import net.readflow.core.NormsCatalog
+import net.readflow.model.Settings
 import net.readflow.model.TextSample
 import net.readflow.model.TextStats
 import net.readflow.model.WordToken
@@ -46,12 +51,61 @@ data class UiState(
     /** Режим читання замість поля вводу. */
     val isReadingMode: Boolean = false,
 
+    /** Обраний режим заміру (сегментований перемикач угорі). */
+    val mode: MeasurementMode = MeasurementMode.TIMER,
+
+    /** Обрана тривалість заміру, с. */
+    val durationSeconds: Int = DEFAULT_DURATION_SECONDS,
+
+    /** Замір іде просто зараз. */
+    val isTimerRunning: Boolean = false,
+
+    /** Час на секундомірі, мс. */
+    val elapsedMillis: Long = 0L,
+
     /**
-     * Номер слова, по якому востаннє тапнули (від 1), або `null`.
-     * У Задачі 6 із нього стане межа читання; поки що це лише відлуння тапа.
+     * Номер слова-межі (від 1) або `null`. Межа означає, докуди учень дочитав:
+     * слова після неї в підрахунок не йдуть.
      */
-    val tappedWordNumber: Int? = null
+    val boundaryWordNumber: Int? = null,
+
+    /**
+     * Номери слів, позначених як помилка.
+     *
+     * Позначки за межею читання лишаються, хоч і не рахуються: перенесли межу —
+     * і вони знову в грі (`SPEC.md`, 4.7).
+     */
+    val errorWordNumbers: Set<Int> = emptySet(),
+
+    /** Підсумок заміру або `null`, якщо його ще немає. */
+    val result: MeasurementResult? = null,
+
+    /** Оцінка результату відносно норми обраного класу й семестру. */
+    val evaluation: NormEvaluation = NormEvaluation.UNKNOWN,
+
+    /** Налаштування вчителя (тема, кегль, клас…). */
+    val settings: Settings = Settings(),
+
+    /** Чи показаний нижній аркуш налаштувань. */
+    val isSettingsSheetVisible: Boolean = false,
+
+    /** Довідник норм із `shared/norms.json`. Порожній — оцінка не показується. */
+    val norms: NormsCatalog = NormsCatalog.Empty
 ) {
     /** Порожній екран: підказка й дві великі кнопки замість статистики. */
     val isEmpty: Boolean get() = text.isEmpty()
+
+    /** Замір можна почати, лише коли є що читати. */
+    val canMeasure: Boolean get() = words.isNotEmpty()
+
+    /** Підпис оцінки з довідника; порожній рядок, якщо оцінки немає. */
+    val evaluationLabel: String get() = norms.describe(evaluation)
+
+    companion object {
+        /** Тривалість заміру за замовчуванням, с. */
+        const val DEFAULT_DURATION_SECONDS = 60
+
+        /** Чіпи вибору тривалості (`SPEC_ANDROID.md`, 2.1). */
+        val DURATION_CHOICES = listOf(30, 60, 120)
+    }
 }

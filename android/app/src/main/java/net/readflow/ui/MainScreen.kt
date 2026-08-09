@@ -6,25 +6,34 @@ import android.content.ClipboardManager
 import android.content.Context
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -32,12 +41,16 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -47,9 +60,16 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
 import net.readflow.R
+import net.readflow.core.MeasurementMode
+import net.readflow.core.MeasurementResult
+import net.readflow.core.NormEvaluation
 import net.readflow.core.TextStatsCalculator
+import net.readflow.model.Settings
 import net.readflow.model.TextSample
 import net.readflow.model.TextStats
+import net.readflow.model.ThemeChoice
+import net.readflow.model.WordMark
+import net.readflow.model.WordToken
 import net.readflow.ui.theme.ReadFlowTheme
 import java.util.Locale
 
@@ -64,37 +84,77 @@ object MainScreenTags {
     const val CLEAR_CONFIRM = "button_clear_confirm"
     const val READING_TEXT = "text_reading"
     const val WORD_TOOLTIP = "tooltip_word"
+    const val MODE_SELECTOR = "selector_mode"
+    const val TIMER_VALUE = "value_timer"
+    const val START_STOP = "button_start_stop"
+    const val RESULT_ROW = "row_result"
+    const val SETTINGS_BUTTON = "button_settings"
 }
 
+/**
+ * Точка входу застосунку: тема залежить від налаштувань, тож вона всередині,
+ * а не навколо — інакше вибір «світла / темна» не було б звідки прочитати.
+ */
 @Composable
-fun MainScreen(
+fun ReadFlowApp(
     viewModel: MainViewModel = viewModel(factory = MainViewModel.factory(LocalContext.current))
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
-    MainScreenContent(
-        state = state,
-        onTextChange = viewModel::onTextChange,
-        onPaste = { viewModel.onTextChange(readClipboardText(context).orEmpty()) },
-        onClear = viewModel::clearText,
-        onToggleStats = viewModel::toggleStatsExpanded,
-        onChooseSample = viewModel::showSampleSheet,
-        onSampleSelected = viewModel::onSampleSelected,
-        onDismissSampleSheet = viewModel::hideSampleSheet,
-        onToggleReadingMode = viewModel::toggleReadingMode,
-        onWordTap = viewModel::onWordTap,
-        onRequestClear = viewModel::requestClear,
-        onCancelClear = viewModel::cancelClear
-    )
+    // Сигнал про кінець заміру — подія, а не стан: інакше після повороту
+    // екрана телефон дзвенів би вдруге.
+    LaunchedEffect(Unit) {
+        viewModel.durationReached.collect { MeasurementAlerts.signalDurationReached(context) }
+    }
+
+    // Екран не гасне лише під час активного заміру (`SPEC_ANDROID.md`, 2.1).
+    val view = LocalView.current
+    DisposableEffect(state.isTimerRunning) {
+        view.keepScreenOn = state.isTimerRunning
+        onDispose { view.keepScreenOn = false }
+    }
+
+    ReadFlowTheme(darkTheme = state.settings.theme.isDark()) {
+        MainScreenContent(
+            state = state,
+            onTextChange = viewModel::onTextChange,
+            onPaste = { viewModel.onTextChange(readClipboardText(context).orEmpty()) },
+            onClear = viewModel::clearText,
+            onToggleStats = viewModel::toggleStatsExpanded,
+            onChooseSample = viewModel::showSampleSheet,
+            onSampleSelected = viewModel::onSampleSelected,
+            onDismissSampleSheet = viewModel::hideSampleSheet,
+            onToggleReadingMode = viewModel::toggleReadingMode,
+            onWordTap = viewModel::onWordTap,
+            onWordLongPress = viewModel::onWordLongPress,
+            onRequestClear = viewModel::requestClear,
+            onCancelClear = viewModel::cancelClear,
+            onModeChange = viewModel::onModeChange,
+            onDurationChange = viewModel::onDurationChange,
+            onToggleMeasurement = viewModel::toggleMeasurement,
+            onShowSettings = viewModel::showSettingsSheet,
+            onDismissSettings = viewModel::hideSettingsSheet,
+            onFontSizeChange = viewModel::onFontSizeChange,
+            onLineSpacingChange = viewModel::onLineSpacingChange,
+            onThemeChange = viewModel::onThemeChange,
+            onGradeChange = viewModel::onGradeChange,
+            onSemesterChange = viewModel::onSemesterChange
+        )
+    }
+}
+
+/** Вибір теми в налаштуваннях; системна питає систему. */
+@Composable
+private fun ThemeChoice.isDark(): Boolean = when (this) {
+    ThemeChoice.SYSTEM -> isSystemInDarkTheme()
+    ThemeChoice.LIGHT -> false
+    ThemeChoice.DARK -> true
 }
 
 /**
  * Розмітка екрана без ViewModel — щоб її можна було і показати в Preview,
  * і перевірити тестом, передавши потрібний стан напряму.
- *
- * Три зони згори вниз: текст займає весь вільний простір, статистика —
- * вузький рядок під ним, керування — внизу, у зоні великого пальця.
  */
 @Composable
 fun MainScreenContent(
@@ -108,8 +168,19 @@ fun MainScreenContent(
     onDismissSampleSheet: () -> Unit = {},
     onToggleReadingMode: () -> Unit = {},
     onWordTap: (Int) -> Unit = {},
+    onWordLongPress: (Int) -> Unit = {},
     onRequestClear: () -> Unit = {},
-    onCancelClear: () -> Unit = {}
+    onCancelClear: () -> Unit = {},
+    onModeChange: (MeasurementMode) -> Unit = {},
+    onDurationChange: (Int) -> Unit = {},
+    onToggleMeasurement: () -> Unit = {},
+    onShowSettings: () -> Unit = {},
+    onDismissSettings: () -> Unit = {},
+    onFontSizeChange: (Int) -> Unit = {},
+    onLineSpacingChange: (Float) -> Unit = {},
+    onThemeChange: (ThemeChoice) -> Unit = {},
+    onGradeChange: (Int) -> Unit = {},
+    onSemesterChange: (Int) -> Unit = {}
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -121,6 +192,13 @@ fun MainScreenContent(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
+            TopRow(
+                mode = state.mode,
+                showModes = !state.isEmpty,
+                onModeChange = onModeChange,
+                onShowSettings = onShowSettings
+            )
+
             val zoneModifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
@@ -130,7 +208,11 @@ fun MainScreenContent(
                 ReadingView(
                     text = state.countedText,
                     words = state.words,
+                    fontSizeSp = state.settings.fontSizeSp,
+                    lineSpacing = state.settings.lineSpacing,
                     onWordTap = onWordTap,
+                    onWordLongPress = onWordLongPress,
+                    markOf = rememberWordMarks(state),
                     modifier = zoneModifier.padding(horizontal = 16.dp, vertical = 8.dp)
                 )
             } else {
@@ -166,7 +248,27 @@ fun MainScreenContent(
 
             HorizontalDivider()
 
+            state.result?.let { result ->
+                ResultRow(
+                    result = result,
+                    showErrors = state.mode.marksErrors,
+                    evaluation = state.evaluation,
+                    evaluationLabel = state.evaluationLabel,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag(MainScreenTags.RESULT_ROW)
+                )
+
+                HorizontalDivider()
+            }
+
             ControlPanel(
+                durationSeconds = state.durationSeconds,
+                elapsedMillis = state.elapsedMillis,
+                isRunning = state.isTimerRunning,
+                canMeasure = state.canMeasure,
+                onDurationChange = onDurationChange,
+                onToggleMeasurement = onToggleMeasurement,
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag(MainScreenTags.CONTROL_PANEL)
@@ -181,10 +283,110 @@ fun MainScreenContent(
             )
         }
 
+        if (state.isSettingsSheetVisible) {
+            SettingsSheet(
+                settings = state.settings,
+                norms = state.norms,
+                onDismiss = onDismissSettings,
+                onFontSizeChange = onFontSizeChange,
+                onLineSpacingChange = onLineSpacingChange,
+                onDurationChange = onDurationChange,
+                onThemeChange = onThemeChange,
+                onGradeChange = onGradeChange,
+                onSemesterChange = onSemesterChange
+            )
+        }
+
         if (state.isClearConfirmVisible) {
             ClearConfirmDialog(onConfirm = onClear, onDismiss = onCancelClear)
         }
     }
+}
+
+/**
+ * Позначки слів для режиму читання.
+ *
+ * Коли слово є і межею, і помилкою, показується **колір помилки**
+ * (`SPEC.md`, 4.7). Причина не естетична: інакше тап по слову-межі не давав би
+ * видимого відгуку, і вчитель вирішив би, що застосунок його не почув.
+ */
+@Composable
+private fun rememberWordMarks(state: UiState): (WordToken) -> WordMark {
+    val boundary = state.boundaryWordNumber
+    val errors = state.errorWordNumbers
+
+    return remember(boundary, errors) {
+        { word ->
+            when {
+                word.number in errors -> WordMark.ERROR
+                word.number == boundary -> WordMark.BOUNDARY
+                else -> WordMark.NONE
+            }
+        }
+    }
+}
+
+/** Сегментований перемикач режимів і кнопка налаштувань. */
+@Composable
+private fun TopRow(
+    mode: MeasurementMode,
+    showModes: Boolean,
+    onModeChange: (MeasurementMode) -> Unit,
+    onShowSettings: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 16.dp, end = 8.dp, top = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (showModes) {
+            SingleChoiceSegmentedButtonRow(
+                modifier = Modifier
+                    .weight(1f)
+                    .testTag(MainScreenTags.MODE_SELECTOR)
+            ) {
+                MeasurementMode.entries.forEachIndexed { index, item ->
+                    SegmentedButton(
+                        selected = item == mode,
+                        onClick = { onModeChange(item) },
+                        shape = SegmentedButtonDefaults.itemShape(
+                            index = index,
+                            count = MeasurementMode.entries.size
+                        ),
+                        // Галочка з'їдає ширину, якої й так обмаль: на 360 dp
+                        // разом із нею «Помилки» переносилось у два рядки.
+                        icon = {},
+                        modifier = Modifier.heightIn(min = 48.dp)
+                    ) {
+                        Text(text = stringResource(item.labelRes()), maxLines = 1)
+                    }
+                }
+            }
+        } else {
+            Spacer(Modifier.weight(1f))
+        }
+
+        IconButton(
+            onClick = onShowSettings,
+            modifier = Modifier
+                .heightIn(min = 48.dp)
+                .testTag(MainScreenTags.SETTINGS_BUTTON)
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Settings,
+                contentDescription = stringResource(R.string.action_settings)
+            )
+        }
+    }
+}
+
+/** Підпис режиму. Літери A/B/C зі специфікації лишилися в документації. */
+private fun MeasurementMode.labelRes(): Int = when (this) {
+    MeasurementMode.TAP_STOP -> R.string.mode_tap_stop
+    MeasurementMode.TIMER -> R.string.mode_timer
+    MeasurementMode.ERRORS -> R.string.mode_errors
 }
 
 @Composable
@@ -202,11 +404,6 @@ private fun TextZone(
     )
 }
 
-/**
- * Кнопки роботи з текстом. «Очистити» з'являється лише тоді, коли є що чистити:
- * постійна сіра кнопка в базовому інтерфейсі — рівно те, чого просить не робити
- * правило мінімалізму.
- */
 @Composable
 private fun ActionRow(
     showSecondary: Boolean,
@@ -260,7 +457,9 @@ private fun ActionRow(
                 FilterChip(
                     selected = isReadingMode,
                     onClick = onToggleReadingMode,
-                    label = { Text(text = stringResource(R.string.action_reading_mode), maxLines = 1) },
+                    label = {
+                        Text(text = stringResource(R.string.action_reading_mode), maxLines = 1)
+                    },
                     modifier = Modifier
                         .heightIn(min = 48.dp)
                         .testTag(MainScreenTags.READING_TOGGLE)
@@ -284,8 +483,7 @@ private fun ActionRow(
  *
  * На десктопі його свідомо немає: там миша, а повернути текст — це Ctrl+V.
  * На телефоні «Очистити» стоїть поруч із перемикачем режиму, палець ширший
- * за кнопку, а буфер обміну до того часу вже інший — тож тут зайвий тап
- * дешевший за втрачений текст.
+ * за кнопку, а буфер обміну до того часу вже інший.
  */
 @Composable
 private fun ClearConfirmDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
@@ -294,7 +492,10 @@ private fun ClearConfirmDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
         title = { Text(stringResource(R.string.clear_confirm_title)) },
         text = { Text(stringResource(R.string.clear_confirm_message)) },
         confirmButton = {
-            TextButton(onClick = onConfirm, modifier = Modifier.testTag(MainScreenTags.CLEAR_CONFIRM)) {
+            TextButton(
+                onClick = onConfirm,
+                modifier = Modifier.testTag(MainScreenTags.CLEAR_CONFIRM)
+            ) {
                 Text(stringResource(R.string.action_clear))
             }
         },
@@ -308,7 +509,6 @@ private fun ClearConfirmDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
 
 /**
  * Компактний рядок статистики; тап розгортає його в повний список.
- * Числа приходять із [TextStats] і оновлюються з дебаунсом (див. [MainViewModel]).
  */
 @Composable
 private fun StatsRow(
@@ -349,6 +549,63 @@ private fun StatsRow(
     }
 }
 
+/** Підсумок заміру: швидкість, знаки за хвилину, час і — у режимі C — помилки. */
+@Composable
+private fun ResultRow(
+    result: MeasurementResult,
+    showErrors: Boolean,
+    evaluation: NormEvaluation,
+    evaluationLabel: String,
+    modifier: Modifier = Modifier
+) {
+    Surface(modifier = modifier, color = MaterialTheme.colorScheme.surfaceVariant) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                StatCell(result.wordsPerMinute.toString(), R.string.result_wpm)
+                StatCell(result.charsPerMinute.toString(), R.string.result_cpm)
+                StatCell(result.wordsRead.toString(), R.string.result_words_read)
+                StatCell(formatTime(result.secondsRounded * 1000L), R.string.result_time)
+            }
+
+            if (showErrors) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    StatCell(result.errors.toString(), R.string.result_errors)
+                    StatCell(formatAverage(result.errorPercent) + " %", R.string.result_error_share)
+                    StatCell(result.cleanWordsPerMinute.toString(), R.string.result_clean_wpm)
+                }
+            }
+
+            if (evaluationLabel.isNotEmpty()) {
+                Text(
+                    text = evaluationLabel,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = evaluation.color()
+                )
+            }
+        }
+    }
+}
+
+/** Колір оцінки: не з палітри теми, а з семантики «гірше / так треба / краще». */
+@Composable
+private fun NormEvaluation.color(): Color = when (this) {
+    NormEvaluation.BELOW -> MaterialTheme.colorScheme.error
+    NormEvaluation.WITHIN -> MaterialTheme.colorScheme.primary
+    NormEvaluation.ABOVE -> MaterialTheme.colorScheme.primary
+    NormEvaluation.UNKNOWN -> MaterialTheme.colorScheme.onSurfaceVariant
+}
+
 @Composable
 private fun StatCell(value: String, labelRes: Int) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -362,33 +619,66 @@ private fun StatCell(value: String, labelRes: Int) {
 }
 
 /**
- * Нижня панель керування: великий лічильник і кнопка Старт.
- * Логіка таймера — Задача 5.
+ * Нижня панель керування: чіпи тривалості, великий лічильник і Старт/Стоп.
  */
 @Composable
-private fun ControlPanel(modifier: Modifier = Modifier) {
+private fun ControlPanel(
+    durationSeconds: Int,
+    elapsedMillis: Long,
+    isRunning: Boolean,
+    canMeasure: Boolean,
+    onDurationChange: (Int) -> Unit,
+    onToggleMeasurement: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     Surface(modifier = modifier, color = MaterialTheme.colorScheme.surface) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                UiState.DURATION_CHOICES.forEach { seconds ->
+                    FilterChip(
+                        selected = seconds == durationSeconds,
+                        // Міняти тривалість посеред заміру означало б зсунути
+                        // позначку, від якої вже відлічують.
+                        enabled = !isRunning,
+                        onClick = { onDurationChange(seconds) },
+                        label = { Text(stringResource(R.string.duration_seconds, seconds)) },
+                        modifier = Modifier.heightIn(min = 48.dp)
+                    )
+                }
+            }
+
             Text(
-                text = stringResource(R.string.timer_zero),
-                style = MaterialTheme.typography.displaySmall
+                text = formatTime(elapsedMillis),
+                style = MaterialTheme.typography.displaySmall,
+                color = if (isRunning) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurface
+                },
+                modifier = Modifier.testTag(MainScreenTags.TIMER_VALUE)
             )
 
             Button(
-                onClick = { },
-                enabled = false,
+                onClick = onToggleMeasurement,
+                enabled = canMeasure,
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 56.dp)
+                    .testTag(MainScreenTags.START_STOP)
             ) {
                 Text(
-                    text = stringResource(R.string.action_start),
+                    text = stringResource(
+                        if (isRunning) R.string.action_stop else R.string.action_start
+                    ),
                     style = MaterialTheme.typography.titleMedium
                 )
             }
@@ -483,8 +773,14 @@ private fun SampleRow(sample: TextSample, onClick: () -> Unit) {
     }
 }
 
+/** Час у форматі мм:сс. Години не потрібні: замір читання — це хвилини. */
+private fun formatTime(millis: Long): String {
+    val totalSeconds = (if (millis < 0) 0 else millis) / 1000
+    return String.format(Locale.ROOT, "%02d:%02d", totalSeconds / 60, totalSeconds % 60)
+}
+
 /**
- * Середня довжина слова форматується завжди українською локаллю: інтерфейс
+ * Дробові числа форматуються завжди українською локаллю: інтерфейс
  * україномовний, і десятковий роздільник не має стрибати між «5,8» і «5.8»
  * залежно від налаштувань телефона.
  */
@@ -523,7 +819,11 @@ private fun MainScreenPreviewReading() {
                 countedText = text,
                 words = TextStatsCalculator.getWords(text),
                 stats = TextStatsCalculator.calculate(text),
-                isReadingMode = true
+                isReadingMode = true,
+                mode = MeasurementMode.ERRORS,
+                boundaryWordNumber = 6,
+                errorWordNumbers = setOf(2),
+                elapsedMillis = 45_000
             )
         )
     }
@@ -537,7 +837,8 @@ private fun MainScreenPreviewDark() {
             state = UiState(
                 text = "Це файл-заглушка.",
                 stats = TextStats(15, 106, 91, 87, 5.8, 3, 2),
-                isStatsExpanded = true
+                isStatsExpanded = true,
+                settings = Settings(grade = 2)
             )
         )
     }
