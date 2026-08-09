@@ -4,11 +4,11 @@
     <!--
         Шаблони стандартних контролів, які інакше лишаються системними.
 
-        Навіщо це взагалі: WPF бере оформлення ComboBox із теми Windows (Aero2),
-        і кольори там системні. Задати Background у стилі недостатньо — випадний
-        список живе у власному Popup, оформленому шаблоном, а не властивостями
-        контрола. Тому в темній темі поле вводу ставало темним, а список під ним
-        лишався світлим: біле по білому.
+        Навіщо це взагалі: WPF бере оформлення ComboBox і Menu з теми Windows
+        (Aero2), і кольори там системні. Задати Background у стилі недостатньо —
+        випадний список і підменю живуть у власних Popup, оформлених шаблоном,
+        а не властивостями контрола. Тому в темній темі поле вводу ставало
+        темним, а список під ним лишався світлим: біле по білому.
 
         Тут немає жодного кольору — тільки посилання на ключі теми через
         DynamicResource. Правило «кольори лише в Themes/» лишається чинним.
@@ -175,6 +175,276 @@
                                     Value="{DynamicResource SecondaryForegroundBrush}" />
                         </Trigger>
                     </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--
+        ══ Меню ══════════════════════════════════════════════════════════
+
+        Та сама історія, що з ComboBox, тільки складніша: MenuItem має чотири
+        ролі (Role), і для кожної системна тема підставляє свій шаблон. Один
+        спільний шаблон тут не годиться — пункт у смужці меню й пункт усередині
+        підменю поводяться по-різному й мають різну розкладку.
+
+        Ролі:
+          TopLevelHeader — пункт у смужці, що відкриває підменю («Довідка»);
+          TopLevelItem   — пункт у смужці без підменю;
+          SubmenuHeader  — пункт усередині підменю, що відкриває вкладене;
+          SubmenuItem    — звичайний пункт усередині підменю.
+
+        Зараз застосунок використовує лише перші дві з чотирьох, але описані
+        всі: пункт, доданий у меню завтра, має оформитися сам, а не виявитися
+        світлою плямою в темній темі — саме так цей баг і зʼявився вперше.
+    -->
+
+    <!-- Пункт усередині підменю -->
+    <ControlTemplate x:Key="MenuSubmenuItemTemplate" TargetType="MenuItem">
+        <Border x:Name="Frame"
+                Background="Transparent"
+                SnapsToDevicePixels="True">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <!-- Колонка під галочку. Порожня для звичайних пунктів, але
+                         ширина фіксована: інакше поява галочки зсувала б підпис. -->
+                    <ColumnDefinition Width="24" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <Path x:Name="Check"
+                      Grid.Column="0"
+                      Visibility="Collapsed"
+                      HorizontalAlignment="Center"
+                      VerticalAlignment="Center"
+                      Data="M 0,3.5 L 2.5,6 L 7,1"
+                      Stroke="{DynamicResource TextForegroundBrush}"
+                      StrokeThickness="1.6" />
+
+                <ContentPresenter Grid.Column="1"
+                                  ContentSource="Header"
+                                  RecognizesAccessKey="True"
+                                  Margin="0,7,0,7"
+                                  VerticalAlignment="Center" />
+
+                <TextBlock x:Name="Gesture"
+                           Grid.Column="2"
+                           Text="{TemplateBinding InputGestureText}"
+                           Margin="24,7,12,7"
+                           VerticalAlignment="Center"
+                           Foreground="{DynamicResource SecondaryForegroundBrush}" />
+            </Grid>
+        </Border>
+        <ControlTemplate.Triggers>
+            <!-- Порожній підпис гарячої клавіші має зникати цілком: Collapsed
+                 прибирає й відступи, а вони інакше розтягували б кожен пункт. -->
+            <Trigger Property="InputGestureText" Value="">
+                <Setter TargetName="Gesture" Property="Visibility" Value="Collapsed" />
+            </Trigger>
+            <Trigger Property="IsHighlighted" Value="True">
+                <Setter TargetName="Frame" Property="Background"
+                        Value="{DynamicResource ControlHoverBrush}" />
+            </Trigger>
+            <Trigger Property="IsChecked" Value="True">
+                <Setter TargetName="Check" Property="Visibility" Value="Visible" />
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Foreground" Value="{DynamicResource SecondaryForegroundBrush}" />
+            </Trigger>
+        </ControlTemplate.Triggers>
+    </ControlTemplate>
+
+    <!-- Пункт підменю, що відкриває вкладене підменю -->
+    <ControlTemplate x:Key="MenuSubmenuHeaderTemplate" TargetType="MenuItem">
+        <Grid x:Name="Root">
+            <Border x:Name="Frame"
+                    Background="Transparent"
+                    SnapsToDevicePixels="True">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="24" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <ContentPresenter Grid.Column="1"
+                                      ContentSource="Header"
+                                      RecognizesAccessKey="True"
+                                      Margin="0,7,0,7"
+                                      VerticalAlignment="Center" />
+
+                    <Path Grid.Column="2"
+                          Margin="24,0,10,0"
+                          VerticalAlignment="Center"
+                          Data="M 0,0 L 4,4 L 0,8 Z"
+                          Fill="{DynamicResource SecondaryForegroundBrush}" />
+                </Grid>
+            </Border>
+
+            <Popup x:Name="PART_Popup"
+                   AllowsTransparency="True"
+                   Focusable="False"
+                   Placement="Right"
+                   HorizontalOffset="-2"
+                   PopupAnimation="None"
+                   IsOpen="{TemplateBinding IsSubmenuOpen}">
+                <Border MinWidth="160"
+                        Background="{DynamicResource TextBackgroundBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="1"
+                        Padding="0,4"
+                        SnapsToDevicePixels="True">
+                    <StackPanel IsItemsHost="True"
+                                KeyboardNavigation.DirectionalNavigation="Cycle" />
+                </Border>
+            </Popup>
+        </Grid>
+        <ControlTemplate.Triggers>
+            <Trigger Property="IsHighlighted" Value="True">
+                <Setter TargetName="Frame" Property="Background"
+                        Value="{DynamicResource ControlHoverBrush}" />
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Foreground" Value="{DynamicResource SecondaryForegroundBrush}" />
+            </Trigger>
+        </ControlTemplate.Triggers>
+    </ControlTemplate>
+
+    <!-- Пункт у смужці меню, що відкриває підменю -->
+    <ControlTemplate x:Key="MenuTopLevelHeaderTemplate" TargetType="MenuItem">
+        <Grid x:Name="Root">
+            <Border x:Name="Frame"
+                    Background="Transparent"
+                    Padding="12,5"
+                    SnapsToDevicePixels="True">
+                <ContentPresenter ContentSource="Header"
+                                  RecognizesAccessKey="True"
+                                  VerticalAlignment="Center" />
+            </Border>
+
+            <Popup x:Name="PART_Popup"
+                   AllowsTransparency="True"
+                   Focusable="False"
+                   Placement="Bottom"
+                   PopupAnimation="None"
+                   IsOpen="{TemplateBinding IsSubmenuOpen}">
+                <Border MinWidth="160"
+                        Background="{DynamicResource TextBackgroundBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="1"
+                        Padding="0,4"
+                        SnapsToDevicePixels="True">
+                    <StackPanel IsItemsHost="True"
+                                KeyboardNavigation.DirectionalNavigation="Cycle" />
+                </Border>
+            </Popup>
+        </Grid>
+        <ControlTemplate.Triggers>
+            <Trigger Property="IsHighlighted" Value="True">
+                <Setter TargetName="Frame" Property="Background"
+                        Value="{DynamicResource ControlHoverBrush}" />
+            </Trigger>
+            <!-- Розкрите меню лишається підсвіченим, поки відкрите: інакше
+                 незрозуміло, який саме пункт смужки зараз показує підменю. -->
+            <Trigger Property="IsSubmenuOpen" Value="True">
+                <Setter TargetName="Frame" Property="Background"
+                        Value="{DynamicResource ControlSelectedBrush}" />
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Foreground" Value="{DynamicResource SecondaryForegroundBrush}" />
+            </Trigger>
+        </ControlTemplate.Triggers>
+    </ControlTemplate>
+
+    <!-- Пункт у смужці меню без підменю -->
+    <ControlTemplate x:Key="MenuTopLevelItemTemplate" TargetType="MenuItem">
+        <Border x:Name="Frame"
+                Background="Transparent"
+                Padding="12,5"
+                SnapsToDevicePixels="True">
+            <ContentPresenter ContentSource="Header"
+                              RecognizesAccessKey="True"
+                              VerticalAlignment="Center" />
+        </Border>
+        <ControlTemplate.Triggers>
+            <Trigger Property="IsHighlighted" Value="True">
+                <Setter TargetName="Frame" Property="Background"
+                        Value="{DynamicResource ControlHoverBrush}" />
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Foreground" Value="{DynamicResource SecondaryForegroundBrush}" />
+            </Trigger>
+        </ControlTemplate.Triggers>
+    </ControlTemplate>
+
+    <!--
+        Стиль без ключа: діє на всі пункти меню. Базовий шаблон — пункт підменю,
+        решта підставляється тригерами за роллю.
+    -->
+    <Style TargetType="MenuItem">
+        <Setter Property="OverridesDefaultStyle" Value="True" />
+        <Setter Property="Foreground" Value="{DynamicResource TextForegroundBrush}" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+        <Setter Property="Template" Value="{StaticResource MenuSubmenuItemTemplate}" />
+        <Style.Triggers>
+            <Trigger Property="Role" Value="TopLevelHeader">
+                <Setter Property="Template" Value="{StaticResource MenuTopLevelHeaderTemplate}" />
+            </Trigger>
+            <Trigger Property="Role" Value="TopLevelItem">
+                <Setter Property="Template" Value="{StaticResource MenuTopLevelItemTemplate}" />
+            </Trigger>
+            <Trigger Property="Role" Value="SubmenuHeader">
+                <Setter Property="Template" Value="{StaticResource MenuSubmenuHeaderTemplate}" />
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <!--
+        Роздільник у меню. Окремий ключ SeparatorStyleKey, а не звичайний стиль
+        Separator: усередині меню WPF шукає оформлення саме за ним, і звичайний
+        стиль просто не застосується.
+    -->
+    <Style x:Key="{x:Static MenuItem.SeparatorStyleKey}" TargetType="Separator">
+        <Setter Property="Margin" Value="0,4" />
+        <Setter Property="Background" Value="{DynamicResource BorderBrush}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Separator">
+                    <Border Height="1"
+                            Background="{TemplateBinding Background}"
+                            SnapsToDevicePixels="True" />
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Сама смужка меню. Кольори через TemplateBinding, щоб вікно могло
+         задати свої, як робить MainWindow для нижньої межі. -->
+    <Style TargetType="Menu">
+        <Setter Property="Background" Value="{DynamicResource PanelBackgroundBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource TextForegroundBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+        <!-- Панель задана явно: у власному шаблоні покладатися на те, що
+             системний стиль підставить свою, — зайвий ризик. -->
+        <Setter Property="ItemsPanel">
+            <Setter.Value>
+                <ItemsPanelTemplate>
+                    <WrapPanel Orientation="Horizontal" />
+                </ItemsPanelTemplate>
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Menu">
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            Padding="{TemplateBinding Padding}"
+                            SnapsToDevicePixels="True">
+                        <ItemsPresenter />
+                    </Border>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
