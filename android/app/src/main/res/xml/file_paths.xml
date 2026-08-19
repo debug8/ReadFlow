@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Дозволені шляхи для FileProvider. Файл експорту пишеться в підпапку
+    exports/ у cacheDir — тимчасово, лише щоб віддати його системному
+    «Поділитися». Постійні дані застосунку тут ні до чого.
+-->
+<paths>
+    <cache-path
+        name="exports"
+        path="exports/" />
+</paths>

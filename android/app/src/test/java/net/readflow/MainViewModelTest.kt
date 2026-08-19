@@ -17,10 +17,13 @@ import net.readflow.core.GradeNorms
 import net.readflow.core.NormLabels
 import net.readflow.core.NormsCatalog
 import net.readflow.core.ReadingNorm
+import net.readflow.data.HistoryRepository
+import net.readflow.data.InMemoryHistoryRepository
 import net.readflow.data.InMemorySettingsRepository
 import net.readflow.data.NormsRepository
 import net.readflow.data.SampleRepository
 import net.readflow.data.SettingsRepository
+import net.readflow.model.Attempt
 import net.readflow.model.Settings
 import net.readflow.model.TextSample
 import net.readflow.model.ThemeChoice
@@ -28,7 +31,9 @@ import net.readflow.ui.MainViewModel
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNotSame
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -82,11 +87,17 @@ class MainViewModelTest {
      */
     private val clock = MonotonicClock { dispatcher.scheduler.currentTime }
 
+    private val historyStore = InMemoryHistoryRepository()
+
+    /** Фіксований «стінний» час — щоб мітка запису історії була передбачувана. */
+    private val fixedNow = 1_700_000_000_000L
+
     private fun viewModel(
         samples: SampleRepository = FakeSamples(),
         settings: SettingsRepository = settingsStore,
-        norms: NormsRepository = FakeNorms()
-    ) = MainViewModel(samples, settings, norms, dispatcher, clock)
+        norms: NormsRepository = FakeNorms(),
+        history: HistoryRepository = historyStore
+    ) = MainViewModel(samples, settings, norms, history, dispatcher, clock, now = { fixedNow })
 
     @Before
     fun setUp() {
@@ -793,6 +804,159 @@ class MainViewModelTest {
 
         assertNotSame(before, vm.uiState.value)
         assertEquals("", before.text)
+    }
+
+    // --- Задача 8: підсумок, збереження, історія ---
+
+    /** Імʼя учня доходить у стан. */
+    @Test
+    fun `student name reaches the state`() = runTest(dispatcher, timeout = TEST_TIMEOUT) {
+        val vm = viewModel()
+
+        vm.onStudentNameChange("Іван")
+
+        assertEquals("Іван", vm.uiState.value.studentName)
+    }
+
+    /** Стоп відкриває аркуш підсумку. */
+    @Test
+    fun `stopping a measurement opens the result sheet`() = runTest(dispatcher, timeout = TEST_TIMEOUT) {
+        val vm = viewModel()
+        vm.onTextChange(TEXT_OF_TEN_WORDS)
+        advanceUntilIdle()
+
+        assertFalse(vm.uiState.value.isResultSheetVisible)
+
+        vm.startMeasurement()
+        advanceTimeBy(10_000)
+        runCurrent()
+        vm.stopMeasurement()
+        advanceUntilIdle()
+
+        assertTrue(vm.uiState.value.isResultSheetVisible)
+        assertNotNull(vm.uiState.value.result)
+    }
+
+    /** У режимі A межа відкриває аркуш підсумку, а знята межа — ховає. */
+    @Test
+    fun `mode A boundary opens and closes the result sheet`() = runTest(dispatcher, timeout = TEST_TIMEOUT) {
+        val vm = viewModel()
+        vm.onModeChange(MeasurementMode.TAP_STOP)
+        vm.onTextChange(TEXT_OF_TEN_WORDS)
+        advanceUntilIdle()
+
+        vm.onWordTap(5)
+        assertTrue(vm.uiState.value.isResultSheetVisible)
+        assertNotNull(vm.uiState.value.result)
+
+        // Повторний тап по тому самому слову знімає межу.
+        vm.onWordTap(5)
+        assertFalse(vm.uiState.value.isResultSheetVisible)
+    }
+
+    /** Збереження підсумку додає запис в історію з полями учня, класу й WPM. */
+    @Test
+    fun `saving a result adds it to history`() = runTest(dispatcher, timeout = TEST_TIMEOUT) {
+        val vm = viewModel()
+        vm.onGradeChange(2)
+        vm.onSemesterChange(2)
+        vm.onStudentNameChange("  Іван  ")
+        vm.onTextChange(TEXT_OF_TEN_WORDS)
+        advanceUntilIdle()
+
+        vm.startMeasurement()
+        advanceTimeBy(10_000)
+        runCurrent()
+        vm.stopMeasurement()
+        advanceUntilIdle()
+
+        vm.saveResultToHistory()
+        advanceUntilIdle()
+
+        val history = vm.uiState.value.history
+        assertEquals(1, history.size)
+        val record = history.first()
+        assertEquals("Іван", record.studentName) // trim прибрав пробіли
+        assertEquals(2, record.grade)
+        assertEquals(60, record.wordsPerMinute)
+        assertEquals(fixedNow, record.createdAt)
+    }
+
+    /** Без підсумку зберігати нічого — історія лишається порожня. */
+    @Test
+    fun `saving without a result does nothing`() = runTest(dispatcher, timeout = TEST_TIMEOUT) {
+        val vm = viewModel()
+        vm.onTextChange(TEXT_OF_TEN_WORDS)
+        advanceUntilIdle()
+
+        vm.saveResultToHistory()
+        advanceUntilIdle()
+
+        assertTrue(vm.uiState.value.history.isEmpty())
+    }
+
+    /** «Ще раз» ховає аркуш і скидає замір, лишаючи текст та імʼя. */
+    @Test
+    fun `measure again resets and hides the sheet`() = runTest(dispatcher, timeout = TEST_TIMEOUT) {
+        val vm = viewModel()
+        vm.onStudentNameChange("Іван")
+        vm.onTextChange(TEXT_OF_TEN_WORDS)
+        advanceUntilIdle()
+        vm.startMeasurement()
+        advanceTimeBy(10_000)
+        runCurrent()
+        vm.stopMeasurement()
+        advanceUntilIdle()
+
+        vm.measureAgain()
+
+        val state = vm.uiState.value
+        assertFalse(state.isResultSheetVisible)
+        assertNull(state.result)
+        assertEquals(0L, state.elapsedMillis)
+        assertEquals(TEXT_OF_TEN_WORDS, state.text) // текст лишився
+        assertEquals("Іван", state.studentName) // імʼя лишилось
+    }
+
+    /** Видалення запису прибирає його з історії. */
+    @Test
+    fun `deleting an attempt removes it from history`() = runTest(dispatcher, timeout = TEST_TIMEOUT) {
+        val store = InMemoryHistoryRepository(
+            listOf(
+                Attempt(id = 1, studentName = "Перший", createdAt = 1_000, wordsPerMinute = 40),
+                Attempt(id = 2, studentName = "Другий", createdAt = 2_000, wordsPerMinute = 50)
+            )
+        )
+        val vm = viewModel(history = store)
+        advanceUntilIdle()
+        assertEquals(2, vm.uiState.value.history.size)
+
+        vm.deleteAttempt(1)
+        advanceUntilIdle()
+
+        val remaining = vm.uiState.value.history
+        assertEquals(1, remaining.size)
+        assertEquals("Другий", remaining.first().studentName)
+    }
+
+    /** Новий текст ховає аркуш підсумку минулого заміру. */
+    @Test
+    fun `new text hides the result sheet`() = runTest(dispatcher, timeout = TEST_TIMEOUT) {
+        val vm = viewModel()
+        vm.onTextChange(TEXT_OF_TEN_WORDS)
+        advanceUntilIdle()
+        vm.startMeasurement()
+        advanceTimeBy(10_000)
+        runCurrent()
+        vm.stopMeasurement()
+        advanceUntilIdle()
+        assertTrue(vm.uiState.value.isResultSheetVisible)
+
+        vm.onTextChange("зовсім інший текст")
+        advanceUntilIdle()
+
+        assertFalse(vm.uiState.value.isResultSheetVisible)
+        assertNull(vm.uiState.value.result)
     }
 
     private companion object {

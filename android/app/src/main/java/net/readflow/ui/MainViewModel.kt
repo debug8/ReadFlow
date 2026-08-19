@@ -34,9 +34,12 @@ import net.readflow.core.TextStatsCalculator
 import net.readflow.data.AssetNormsRepository
 import net.readflow.data.AssetSampleRepository
 import net.readflow.data.DataStoreSettingsRepository
+import net.readflow.data.HistoryRepository
 import net.readflow.data.NormsRepository
+import net.readflow.data.RoomHistoryRepository
 import net.readflow.data.SampleRepository
 import net.readflow.data.SettingsRepository
+import net.readflow.model.Attempt
 import net.readflow.model.Settings
 import net.readflow.model.TextSample
 import net.readflow.model.TextStats
@@ -56,8 +59,16 @@ class MainViewModel(
     private val samples: SampleRepository,
     private val settingsStore: SettingsRepository,
     private val normsStore: NormsRepository,
+    private val historyStore: HistoryRepository,
     private val computeDispatcher: CoroutineDispatcher = Dispatchers.Default,
-    private val clock: MonotonicClock = MonotonicClock.Default
+    private val clock: MonotonicClock = MonotonicClock.Default,
+    /**
+     * Стінний час для мітки запису історії — epoch-мілісекунди.
+     *
+     * Окремо від [clock]: той монотонний (аптайм) і в дату не годиться, а тут
+     * потрібен саме календарний час. У тестах підмінюється фіксованим.
+     */
+    private val now: () -> Long = { System.currentTimeMillis() }
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(UiState())
@@ -72,6 +83,13 @@ class MainViewModel(
      */
     private val _durationReached = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val durationReached: SharedFlow<Unit> = _durationReached.asSharedFlow()
+
+    /**
+     * Результат записано в історію. Подія, а не поле стану: підтвердження
+     * зʼявляється один раз, а полем воно продзвеніло б удруге після повороту.
+     */
+    private val _resultSaved = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val resultSaved: SharedFlow<Unit> = _resultSaved.asSharedFlow()
 
     /** Окремий потік тексту: сам текст оновлюється миттєво, а статистика — з дебаунсом. */
     private val textInput = MutableStateFlow("")
@@ -124,6 +142,12 @@ class MainViewModel(
         }
 
         viewModelScope.launch {
+            historyStore.history.collect { records ->
+                _uiState.update { it.copy(history = records) }
+            }
+        }
+
+        viewModelScope.launch {
             settingsStore.settings.collect { settings ->
                 _uiState.update { current ->
                     current.copy(
@@ -155,6 +179,8 @@ class MainViewModel(
                 isTimerRunning = false,
                 result = null,
                 evaluation = NormEvaluation.UNKNOWN,
+                // Підсумок стосувався минулого тексту — ховаємо аркуш.
+                isResultSheetVisible = false,
                 // Порожній текст нічого читати: режим читання сам вимикається,
                 // інакше екран лишився б із порожньою зоною й без поля вводу.
                 isReadingMode = current.isReadingMode && text.isNotEmpty()
@@ -273,7 +299,15 @@ class MainViewModel(
             current.copy(
                 boundaryWordNumber = if (current.boundaryWordNumber == number) null else number,
                 isTimerRunning = if (current.mode.usesFixedDuration) false else current.isTimerRunning
-            ).recalculated()
+            ).recalculated().let { updated ->
+                // У режимі A межа заміняє собою Стоп, тож і аркуш підсумку
+                // показуємо тут — коли межа є. Знята межа ховає аркуш.
+                if (updated.mode.usesFixedDuration) {
+                    updated.copy(isResultSheetVisible = updated.result != null)
+                } else {
+                    updated
+                }
+            }
         }
     }
 
@@ -319,7 +353,8 @@ class MainViewModel(
                 boundaryWordNumber = null,
                 errorWordNumbers = emptySet(),
                 result = null,
-                evaluation = NormEvaluation.UNKNOWN
+                evaluation = NormEvaluation.UNKNOWN,
+                isResultSheetVisible = false
             )
         }
 
@@ -342,7 +377,11 @@ class MainViewModel(
         stopTimer()
 
         _uiState.update { current ->
-            current.copy(isTimerRunning = false, elapsedMillis = elapsed).recalculated()
+            current.copy(isTimerRunning = false, elapsedMillis = elapsed)
+                .recalculated()
+                // Після Стоп показуємо аркуш підсумку (`SPEC_ANDROID.md`, 2.1),
+                // але лише коли підсумок справді є.
+                .let { it.copy(isResultSheetVisible = it.result != null) }
         }
     }
 
@@ -397,6 +436,86 @@ class MainViewModel(
 
     private fun updateSettings(transform: (Settings) -> Settings) {
         viewModelScope.launch { settingsStore.update(transform) }
+    }
+
+    // --- Підсумок, учень і історія ---
+
+    /** Імʼя учня перед заміром: іде в запис історії. Порожнє — теж дозволено. */
+    fun onStudentNameChange(name: String) {
+        _uiState.update { current -> current.copy(studentName = name) }
+    }
+
+    /** Знову відкрити аркуш підсумку (тап по рядку результату). */
+    fun showResultSheet() {
+        _uiState.update { current ->
+            if (current.result != null) current.copy(isResultSheetVisible = true) else current
+        }
+    }
+
+    /** Закрити аркуш підсумку, лишивши сам результат на екрані. */
+    fun hideResultSheet() {
+        _uiState.update { current -> current.copy(isResultSheetVisible = false) }
+    }
+
+    /**
+     * «Ще раз»: закрити аркуш і скинути замір під новий прохід того самого
+     * тексту. Текст і імʼя учня лишаються — це той самий учень і той самий
+     * текст, змінюється лише спроба.
+     */
+    fun measureAgain() {
+        stopTimer()
+        _uiState.update { current ->
+            current.copy(
+                isResultSheetVisible = false,
+                isTimerRunning = false,
+                elapsedMillis = 0L,
+                boundaryWordNumber = null,
+                errorWordNumbers = emptySet(),
+                result = null,
+                evaluation = NormEvaluation.UNKNOWN
+            )
+        }
+    }
+
+    /**
+     * Записати поточний підсумок в історію.
+     *
+     * Без результату не робить нічого: кнопка «Зберегти» й так активна лише за
+     * наявного підсумку, але подвійний тап не має створювати другий запис ані
+     * порожній.
+     */
+    fun saveResultToHistory() {
+        val state = _uiState.value
+        val result = state.result ?: return
+
+        val attempt = Attempt(
+            studentName = state.studentName.trim(),
+            createdAt = now(),
+            grade = state.settings.grade,
+            wordsPerMinute = result.wordsPerMinute,
+            charsPerMinute = result.charsPerMinute,
+            errors = result.errors,
+            errorPercent = result.errorPercent
+        )
+
+        viewModelScope.launch {
+            historyStore.save(attempt)
+            _resultSaved.tryEmit(Unit)
+        }
+    }
+
+    /** Кнопка «Історія». */
+    fun showHistorySheet() {
+        _uiState.update { current -> current.copy(isHistorySheetVisible = true) }
+    }
+
+    fun hideHistorySheet() {
+        _uiState.update { current -> current.copy(isHistorySheetVisible = false) }
+    }
+
+    /** Свайп у списку історії. */
+    fun deleteAttempt(id: Long) {
+        viewModelScope.launch { historyStore.delete(id) }
     }
 
     override fun onCleared() {
@@ -466,7 +585,8 @@ class MainViewModel(
                     MainViewModel(
                         samples = AssetSampleRepository(appContext),
                         settingsStore = DataStoreSettingsRepository(appContext),
-                        normsStore = AssetNormsRepository(appContext)
+                        normsStore = AssetNormsRepository(appContext),
+                        historyStore = RoomHistoryRepository.create(appContext)
                     )
                 }
             }

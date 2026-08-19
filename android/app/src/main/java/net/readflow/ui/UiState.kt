@@ -4,6 +4,7 @@ import net.readflow.core.MeasurementMode
 import net.readflow.core.MeasurementResult
 import net.readflow.core.NormEvaluation
 import net.readflow.core.NormsCatalog
+import net.readflow.model.Attempt
 import net.readflow.model.Settings
 import net.readflow.model.TextSample
 import net.readflow.model.TextStats
@@ -83,6 +84,18 @@ data class UiState(
     /** Оцінка результату відносно норми обраного класу й семестру. */
     val evaluation: NormEvaluation = NormEvaluation.UNKNOWN,
 
+    /** Імʼя учня (необовʼязкове) — вводиться перед заміром, іде в історію. */
+    val studentName: String = "",
+
+    /** Чи показаний нижній аркуш підсумку заміру. */
+    val isResultSheetVisible: Boolean = false,
+
+    /** Збережена історія замірів, новіші згори. */
+    val history: List<Attempt> = emptyList(),
+
+    /** Чи показаний нижній аркуш історії. */
+    val isHistorySheetVisible: Boolean = false,
+
     /** Налаштування вчителя (тема, кегль, клас…). */
     val settings: Settings = Settings(),
 
@@ -97,6 +110,9 @@ data class UiState(
 
     /** Замір можна почати, лише коли є що читати. */
     val canMeasure: Boolean get() = words.isNotEmpty()
+
+    /** Історію можна експортувати, лише коли в ній щось є. */
+    val hasHistory: Boolean get() = history.isNotEmpty()
 
     /** Підпис оцінки з довідника; порожній рядок, якщо оцінки немає. */
     val evaluationLabel: String get() = norms.describe(evaluation)

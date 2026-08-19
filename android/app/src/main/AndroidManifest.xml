@@ -23,6 +23,22 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!--
+            Роздача файлу експорту (CSV історії) через системний «Поділитися».
+            FileProvider віддає content://-URI замість file://, тож жодних
+            мережевих чи широких файлових дозволів не потрібно — доступ
+            надається разовим грантом саме на цей файл (Задача 8).
+        -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
 
 </manifest>

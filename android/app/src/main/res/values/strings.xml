@@ -54,6 +54,38 @@
     <string name="result_error_share">Від прочитаного</string>
     <string name="result_clean_wpm">Чиста швидк.</string>
 
+    <!-- Підсумковий аркуш, збереження, історія (Задача 8) -->
+    <string name="result_sheet_title">Підсумок заміру</string>
+    <string name="student_name_label">Імʼя учня (необовʼязково)</string>
+    <string name="action_save_history">Зберегти в історію</string>
+    <string name="action_share">Поділитися</string>
+    <string name="action_again">Ще раз</string>
+    <string name="result_saved">Записано в історію</string>
+
+    <string name="action_history">Історія</string>
+    <string name="history_title">Історія замірів</string>
+    <string name="history_empty">Історії ще немає. Збережіть результат заміру кнопкою «Зберегти в історію».</string>
+    <string name="history_no_name">Без імені</string>
+    <string name="history_delete">Видалити</string>
+    <string name="history_deleted">Запис видалено</string>
+    <string name="action_export_csv">Експорт CSV</string>
+    <!-- %1$s — слів/хв, %2$s — дата -->
+    <string name="history_row_stats">%1$d слів/хв · %2$s</string>
+
+    <!-- Текст для «Поділитися одним результатом». %1$s підставляється в коді. -->
+    <string name="share_result_subject">ReadFlow — результат читання</string>
+    <string name="share_result_student">Учень: %1$s</string>
+    <string name="share_result_wpm">Слів за хвилину: %1$d</string>
+    <string name="share_result_cpm">Знаків за хвилину: %1$d</string>
+    <string name="share_result_words">Прочитано слів: %1$d</string>
+    <string name="share_result_time">Час: %1$s</string>
+    <string name="share_result_errors">Помилки: %1$d (%2$s %%)</string>
+    <string name="share_result_clean">Чиста швидкість: %1$d слів/хв</string>
+    <string name="share_result_evaluation">Оцінка: %1$s</string>
+    <string name="share_chooser_title">Поділитися результатом</string>
+    <string name="export_chooser_title">Поділитися історією</string>
+    <string name="export_file_name" translatable="false">readflow-history.csv</string>
+
     <!-- Налаштування -->
     <string name="action_settings">Налаштування</string>
     <string name="settings_title">Налаштування</string>

@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -60,6 +61,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
 import net.readflow.R
+import net.readflow.core.HistoryCsv
 import net.readflow.core.MeasurementMode
 import net.readflow.core.MeasurementResult
 import net.readflow.core.NormEvaluation
@@ -89,6 +91,7 @@ object MainScreenTags {
     const val START_STOP = "button_start_stop"
     const val RESULT_ROW = "row_result"
     const val SETTINGS_BUTTON = "button_settings"
+    const val HISTORY_BUTTON = "button_history"
 }
 
 /**
@@ -101,11 +104,19 @@ fun ReadFlowApp(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
 
     // Сигнал про кінець заміру — подія, а не стан: інакше після повороту
     // екрана телефон дзвенів би вдруге.
     LaunchedEffect(Unit) {
         viewModel.durationReached.collect { MeasurementAlerts.signalDurationReached(context) }
+    }
+
+    // Підтвердження «Записано в історію» — теж подія: полем воно продзвеніло б
+    // удруге після повороту.
+    val savedMessage = stringResource(R.string.result_saved)
+    LaunchedEffect(Unit) {
+        viewModel.resultSaved.collect { snackbarHostState.showSnackbar(savedMessage) }
     }
 
     // Екран не гасне лише під час активного заміру (`SPEC_ANDROID.md`, 2.1).
@@ -118,6 +129,7 @@ fun ReadFlowApp(
     ReadFlowTheme(darkTheme = state.settings.theme.isDark()) {
         MainScreenContent(
             state = state,
+            snackbarHostState = snackbarHostState,
             onTextChange = viewModel::onTextChange,
             onPaste = { viewModel.onTextChange(readClipboardText(context).orEmpty()) },
             onClear = viewModel::clearText,
@@ -139,7 +151,41 @@ fun ReadFlowApp(
             onLineSpacingChange = viewModel::onLineSpacingChange,
             onThemeChange = viewModel::onThemeChange,
             onGradeChange = viewModel::onGradeChange,
-            onSemesterChange = viewModel::onSemesterChange
+            onSemesterChange = viewModel::onSemesterChange,
+            onStudentNameChange = viewModel::onStudentNameChange,
+            onShowResult = viewModel::showResultSheet,
+            onDismissResult = viewModel::hideResultSheet,
+            onSaveResult = viewModel::saveResultToHistory,
+            onMeasureAgain = viewModel::measureAgain,
+            onShareResult = {
+                val result = state.result
+                if (result != null) {
+                    val body = buildShareResultText(
+                        context = context,
+                        result = result,
+                        studentName = state.studentName,
+                        showErrors = state.mode.marksErrors,
+                        evaluationLabel = state.evaluationLabel
+                    )
+                    HistoryShare.shareText(
+                        context = context,
+                        subject = context.getString(R.string.share_result_subject),
+                        body = body,
+                        chooserTitle = context.getString(R.string.share_chooser_title)
+                    )
+                }
+            },
+            onShowHistory = viewModel::showHistorySheet,
+            onDismissHistory = viewModel::hideHistorySheet,
+            onDeleteAttempt = viewModel::deleteAttempt,
+            onExportHistory = {
+                HistoryShare.shareCsv(
+                    context = context,
+                    csv = HistoryCsv.export(state.history),
+                    fileName = context.getString(R.string.export_file_name),
+                    chooserTitle = context.getString(R.string.export_chooser_title)
+                )
+            }
         )
     }
 }
@@ -159,6 +205,7 @@ private fun ThemeChoice.isDark(): Boolean = when (this) {
 @Composable
 fun MainScreenContent(
     state: UiState,
+    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
     onTextChange: (String) -> Unit = {},
     onPaste: () -> Unit = {},
     onClear: () -> Unit = {},
@@ -180,10 +227,18 @@ fun MainScreenContent(
     onLineSpacingChange: (Float) -> Unit = {},
     onThemeChange: (ThemeChoice) -> Unit = {},
     onGradeChange: (Int) -> Unit = {},
-    onSemesterChange: (Int) -> Unit = {}
+    onSemesterChange: (Int) -> Unit = {},
+    onStudentNameChange: (String) -> Unit = {},
+    onShowResult: () -> Unit = {},
+    onDismissResult: () -> Unit = {},
+    onSaveResult: () -> Unit = {},
+    onMeasureAgain: () -> Unit = {},
+    onShareResult: () -> Unit = {},
+    onShowHistory: () -> Unit = {},
+    onDismissHistory: () -> Unit = {},
+    onDeleteAttempt: (Long) -> Unit = {},
+    onExportHistory: () -> Unit = {}
 ) {
-    val snackbarHostState = remember { SnackbarHostState() }
-
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { innerPadding ->
@@ -195,7 +250,9 @@ fun MainScreenContent(
             TopRow(
                 mode = state.mode,
                 showModes = !state.isEmpty,
+                hasHistory = state.hasHistory,
                 onModeChange = onModeChange,
+                onShowHistory = onShowHistory,
                 onShowSettings = onShowSettings
             )
 
@@ -254,6 +311,7 @@ fun MainScreenContent(
                     showErrors = state.mode.marksErrors,
                     evaluation = state.evaluation,
                     evaluationLabel = state.evaluationLabel,
+                    onClick = onShowResult,
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag(MainScreenTags.RESULT_ROW)
@@ -300,6 +358,26 @@ fun MainScreenContent(
         if (state.isClearConfirmVisible) {
             ClearConfirmDialog(onConfirm = onClear, onDismiss = onCancelClear)
         }
+
+        if (state.isResultSheetVisible) {
+            ResultSheet(
+                state = state,
+                onStudentNameChange = onStudentNameChange,
+                onSave = onSaveResult,
+                onShare = onShareResult,
+                onAgain = onMeasureAgain,
+                onDismiss = onDismissResult
+            )
+        }
+
+        if (state.isHistorySheetVisible) {
+            HistorySheet(
+                history = state.history,
+                onDelete = onDeleteAttempt,
+                onExport = onExportHistory,
+                onDismiss = onDismissHistory
+            )
+        }
     }
 }
 
@@ -331,7 +409,9 @@ private fun rememberWordMarks(state: UiState): (WordToken) -> WordMark {
 private fun TopRow(
     mode: MeasurementMode,
     showModes: Boolean,
+    hasHistory: Boolean,
     onModeChange: (MeasurementMode) -> Unit,
+    onShowHistory: () -> Unit,
     onShowSettings: () -> Unit
 ) {
     Row(
@@ -366,6 +446,22 @@ private fun TopRow(
             }
         } else {
             Spacer(Modifier.weight(1f))
+        }
+
+        // Історія зʼявляється лише коли є що показувати — інакше кнопка веде
+        // на порожній аркуш і плутає в стані за замовчуванням.
+        if (hasHistory) {
+            IconButton(
+                onClick = onShowHistory,
+                modifier = Modifier
+                    .heightIn(min = 48.dp)
+                    .testTag(MainScreenTags.HISTORY_BUTTON)
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.List,
+                    contentDescription = stringResource(R.string.action_history)
+                )
+            }
         }
 
         IconButton(
@@ -556,12 +652,15 @@ private fun ResultRow(
     showErrors: Boolean,
     evaluation: NormEvaluation,
     evaluationLabel: String,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Surface(modifier = modifier, color = MaterialTheme.colorScheme.surfaceVariant) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                // Тап по рядку знову відкриває аркуш підсумку з діями.
+                .clickable(onClick = onClick)
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
@@ -607,7 +706,7 @@ private fun NormEvaluation.color(): Color = when (this) {
 }
 
 @Composable
-private fun StatCell(value: String, labelRes: Int) {
+internal fun StatCell(value: String, labelRes: Int) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(text = value, style = MaterialTheme.typography.titleMedium)
         Text(
@@ -774,7 +873,7 @@ private fun SampleRow(sample: TextSample, onClick: () -> Unit) {
 }
 
 /** Час у форматі мм:сс. Години не потрібні: замір читання — це хвилини. */
-private fun formatTime(millis: Long): String {
+internal fun formatTime(millis: Long): String {
     val totalSeconds = (if (millis < 0) 0 else millis) / 1000
     return String.format(Locale.ROOT, "%02d:%02d", totalSeconds / 60, totalSeconds % 60)
 }
@@ -784,7 +883,7 @@ private fun formatTime(millis: Long): String {
  * україномовний, і десятковий роздільник не має стрибати між «5,8» і «5.8»
  * залежно від налаштувань телефона.
  */
-private fun formatAverage(value: Double): String =
+internal fun formatAverage(value: Double): String =
     String.format(Locale.forLanguageTag("uk"), "%.1f", value)
 
 /** Текст із буфера обміну; `null` — у буфері не текст або він порожній. */
