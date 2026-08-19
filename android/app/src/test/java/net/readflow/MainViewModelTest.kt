@@ -1,5 +1,6 @@
 package net.readflow
 
+import androidx.lifecycle.SavedStateHandle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -96,8 +97,9 @@ class MainViewModelTest {
         samples: SampleRepository = FakeSamples(),
         settings: SettingsRepository = settingsStore,
         norms: NormsRepository = FakeNorms(),
-        history: HistoryRepository = historyStore
-    ) = MainViewModel(samples, settings, norms, history, dispatcher, clock, now = { fixedNow })
+        history: HistoryRepository = historyStore,
+        saved: SavedStateHandle = SavedStateHandle()
+    ) = MainViewModel(samples, settings, norms, history, dispatcher, clock, now = { fixedNow }, savedState = saved)
 
     @Before
     fun setUp() {
@@ -957,6 +959,70 @@ class MainViewModelTest {
 
         assertFalse(vm.uiState.value.isResultSheetVisible)
         assertNull(vm.uiState.value.result)
+    }
+
+    // --- Задача 9: збереження стану поза життям процесу ---
+
+    /** Текст, режим, межа й імʼя переживають убивство процесу. */
+    @Test
+    fun `state survives process death`() = runTest(dispatcher, timeout = TEST_TIMEOUT) {
+        val saved = SavedStateHandle()
+
+        val first = viewModel(norms = FakeNorms(NORMS), saved = saved)
+        first.onGradeChange(2)
+        first.onSemesterChange(2)
+        first.onModeChange(MeasurementMode.ERRORS)
+        first.onStudentNameChange("Іван")
+        first.onTextChange(TEXT_OF_TEN_WORDS)
+        advanceUntilIdle()
+        first.onWordTap(3) // помилка на слові 3 (режим C)
+        first.onWordLongPress(8) // межа читання на слові 8
+        advanceUntilIdle()
+
+        // Процес убито, ViewModel створюється заново з тим самим handle.
+        val restored = viewModel(norms = FakeNorms(NORMS), saved = saved)
+        advanceUntilIdle()
+
+        val state = restored.uiState.value
+        assertEquals(TEXT_OF_TEN_WORDS, state.text)
+        assertEquals(MeasurementMode.ERRORS, state.mode)
+        assertEquals("Іван", state.studentName)
+        assertEquals(8, state.boundaryWordNumber)
+        assertEquals(setOf(3), state.errorWordNumbers)
+        assertEquals(10, state.stats.wordCount) // текст перерахувався
+    }
+
+    /** Порожній збережений стан лишає екран порожнім. */
+    @Test
+    fun `empty saved state restores nothing`() = runTest(dispatcher, timeout = TEST_TIMEOUT) {
+        val vm = viewModel(saved = SavedStateHandle())
+        advanceUntilIdle()
+
+        assertTrue(vm.uiState.value.isEmpty)
+        assertEquals("", vm.uiState.value.text)
+    }
+
+    /** Завершений замір відновлюється зупиненим і з тим самим підсумком. */
+    @Test
+    fun `a finished measurement is restored with its result`() = runTest(dispatcher, timeout = TEST_TIMEOUT) {
+        val saved = SavedStateHandle()
+
+        val first = viewModel(saved = saved)
+        first.onTextChange(TEXT_OF_TEN_WORDS)
+        advanceUntilIdle()
+        first.startMeasurement()
+        advanceTimeBy(10_000) // 10 слів за 10 с → 60 слів/хв
+        runCurrent()
+        first.stopMeasurement()
+        advanceUntilIdle()
+
+        val restored = viewModel(saved = saved)
+        advanceUntilIdle()
+
+        val state = restored.uiState.value
+        assertFalse(state.isTimerRunning)
+        // Підсумок не зберігається, а відтворюється з тих самих входів.
+        assertEquals(60, state.result!!.wordsPerMinute)
     }
 
     private companion object {

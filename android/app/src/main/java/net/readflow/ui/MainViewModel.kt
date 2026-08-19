@@ -1,8 +1,10 @@
 package net.readflow.ui
 
 import android.content.Context
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
@@ -68,7 +70,16 @@ class MainViewModel(
      * Окремо від [clock]: той монотонний (аптайм) і в дату не годиться, а тут
      * потрібен саме календарний час. У тестах підмінюється фіксованим.
      */
-    private val now: () -> Long = { System.currentTimeMillis() }
+    private val now: () -> Long = { System.currentTimeMillis() },
+    /**
+     * Збереження стану поза життям процесу (`SPEC_ANDROID.md`, розділ 5).
+     *
+     * Поворот екрана переживає сама ViewModel (її утримує фреймворк), а от
+     * убивство процесу в фоні — ні: тоді відновлення йде звідси. За
+     * замовчуванням порожній handle — щоб тести, яким збереження байдуже,
+     * не мусили його передавати.
+     */
+    private val savedState: SavedStateHandle = SavedStateHandle()
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(UiState())
@@ -99,6 +110,8 @@ class MainViewModel(
     private var durationSignalled = false
 
     init {
+        restoreState()
+
         viewModelScope.launch {
             textInput
                 .debounce(STATS_DEBOUNCE_MS)
@@ -188,6 +201,7 @@ class MainViewModel(
         }
 
         textInput.value = text
+        persist()
     }
 
     /** Перемикач «Читання» над текстом. На порожньому тексті нічого не робить. */
@@ -264,6 +278,7 @@ class MainViewModel(
                 ).recalculated()
             }
         }
+        persist()
     }
 
     /**
@@ -309,6 +324,7 @@ class MainViewModel(
                 }
             }
         }
+        persist()
     }
 
     /** Повторний тап по позначеному слову знімає позначку. */
@@ -322,6 +338,7 @@ class MainViewModel(
 
             current.copy(errorWordNumbers = updated).recalculated()
         }
+        persist()
     }
 
     // --- Таймер ---
@@ -358,6 +375,10 @@ class MainViewModel(
             )
         }
 
+        // Старт скидає межу, помилки й час — зберігаємо цей скинутий стан,
+        // щоб відновлення не повернуло дані минулої спроби.
+        persist()
+
         timerJob?.cancel()
         timerJob = viewModelScope.launch {
             while (isActive) {
@@ -383,6 +404,7 @@ class MainViewModel(
                 // але лише коли підсумок справді є.
                 .let { it.copy(isResultSheetVisible = it.result != null) }
         }
+        persist()
     }
 
     /** Чіп тривалості. Пишеться в налаштування, щоб пережити перезапуск. */
@@ -443,6 +465,7 @@ class MainViewModel(
     /** Імʼя учня перед заміром: іде в запис історії. Порожнє — теж дозволено. */
     fun onStudentNameChange(name: String) {
         _uiState.update { current -> current.copy(studentName = name) }
+        persist()
     }
 
     /** Знову відкрити аркуш підсумку (тап по рядку результату). */
@@ -475,6 +498,7 @@ class MainViewModel(
                 evaluation = NormEvaluation.UNKNOWN
             )
         }
+        persist()
     }
 
     /**
@@ -516,6 +540,60 @@ class MainViewModel(
     /** Свайп у списку історії. */
     fun deleteAttempt(id: Long) {
         viewModelScope.launch { historyStore.delete(id) }
+    }
+
+    // --- Збереження стану поза життям процесу ---
+
+    /**
+     * Відновити стан після вбивства процесу.
+     *
+     * Зберігаємо й повертаємо саме **входи** заміру (текст, режим, межа,
+     * помилки, час, імʼя), а не готовий підсумок: щойно текст перерахується,
+     * `recalculated()` відтворить ті самі числа за тими самими правилами —
+     * одне джерело правди замість двох, що неминуче розійшлися б.
+     *
+     * Замір, який тривав у мить убивства, відновлюється **зупиненим**: годинник
+     * монотонний і разом із процесом обнулився, тож чесно продовжити відлік
+     * нема від чого.
+     */
+    private fun restoreState() {
+        val text = savedState.get<String>(KEY_TEXT) ?: return
+
+        val modeName = savedState.get<String>(KEY_MODE)
+        val mode = MeasurementMode.entries.firstOrNull { it.name == modeName }
+            ?: MeasurementMode.TIMER
+        val boundary = savedState.get<Int>(KEY_BOUNDARY)?.takeIf { it > 0 }
+        val errors = savedState.get<IntArray>(KEY_ERRORS)?.toSet() ?: emptySet()
+        val elapsed = savedState.get<Long>(KEY_ELAPSED) ?: 0L
+        val studentName = savedState.get<String>(KEY_NAME).orEmpty()
+
+        _uiState.update {
+            it.copy(
+                text = text,
+                mode = mode,
+                boundaryWordNumber = boundary,
+                errorWordNumbers = errors,
+                elapsedMillis = elapsed,
+                isTimerRunning = false,
+                studentName = studentName
+            )
+        }
+
+        // Запускаємо розбір відновленого тексту — статистика, слова й підсумок
+        // відтворяться, щойно він завершиться.
+        textInput.value = text
+    }
+
+    /** Записати входи заміру в handle — щоб пережили вбивство процесу. */
+    private fun persist() {
+        val state = _uiState.value
+
+        savedState[KEY_TEXT] = state.text
+        savedState[KEY_MODE] = state.mode.name
+        savedState[KEY_BOUNDARY] = state.boundaryWordNumber ?: -1
+        savedState[KEY_ERRORS] = state.errorWordNumbers.toIntArray()
+        savedState[KEY_ELAPSED] = state.elapsedMillis
+        savedState[KEY_NAME] = state.studentName
     }
 
     override fun onCleared() {
@@ -576,6 +654,14 @@ class MainViewModel(
          */
         const val TICK_MS = 100L
 
+        // Ключі збереження стану (SavedStateHandle).
+        private const val KEY_TEXT = "ss_text"
+        private const val KEY_MODE = "ss_mode"
+        private const val KEY_BOUNDARY = "ss_boundary"
+        private const val KEY_ERRORS = "ss_errors"
+        private const val KEY_ELAPSED = "ss_elapsed"
+        private const val KEY_NAME = "ss_student"
+
         /** Фабрика для екрана: репозиторії потребують `Context`. */
         fun factory(context: Context): ViewModelProvider.Factory {
             val appContext = context.applicationContext
@@ -586,7 +672,8 @@ class MainViewModel(
                         samples = AssetSampleRepository(appContext),
                         settingsStore = DataStoreSettingsRepository(appContext),
                         normsStore = AssetNormsRepository(appContext),
-                        historyStore = RoomHistoryRepository.create(appContext)
+                        historyStore = RoomHistoryRepository.create(appContext),
+                        savedState = createSavedStateHandle()
                     )
                 }
             }
